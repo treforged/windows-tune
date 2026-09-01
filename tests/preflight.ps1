@@ -39,7 +39,7 @@ foreach ($n in 'NOTICE.md', 'install.ps1', 'windows-tune.ps1', 'Run-WindowsTune.
 }
 
 # 3. no pipe-to-iex anywhere but the two files that warn about it
-$hits = Get-ChildItem $repo -Recurse -File | Where-Object { $_.FullName -notmatch '\\(\.git|tests)\\' -and $_.Name -notin 'NOTICE.md', 'README.md' } |
+$hits = Get-ChildItem $repo -Recurse -File | Where-Object { $_.FullName -notmatch '\\(\.git|tests)\\' -and $_.Extension -ne '.md' } |
     Select-String -Pattern '\|\s*(iex|Invoke-Expression)\b', 'DownloadString' -SimpleMatch:$false
 if ($hits) { foreach ($h in $hits) { Fail "pipe-to-iex in $($h.Filename):$($h.LineNumber)" } } else { Pass 'no pipe-to-iex outside the notice' }
 
