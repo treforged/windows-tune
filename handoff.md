@@ -5,6 +5,22 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-09-01 - the menu offers no-op changes on an already-tuned machine
+
+Measured on the reference box, every value the scripts target was ALREADY at
+target: min processor state 0%, autotuning normal, RSS/RSC enabled,
+NetworkThrottlingIndex disabled, all NIC properties set. Choosing 3 or 4 there
+bounces the NIC for ~5s and changes nothing.
+
+That is a product honesty gap, not a bug: a user who picks an option is told
+what it WILL change, runs it, and cannot tell "applied" from "was already
+correct". The repo's own standard - never show something you cannot stand
+behind, an empty state should be honest - says a script should read the
+current value first and report `already at target, nothing to change` instead
+of performing a no-op and a NIC bounce. Not built: it is new scope Tre has not
+asked for, and it touches all six scripts. Queued as item 6 rather than
+started.
+
 ## 2026-09-01 - published head re-verified end to end from a stranger's side
 
 No code change. `8905097` (the head carrying the splat fix and stage 9) was
@@ -175,6 +191,12 @@ Known gaps, in order of what a user would hit:
    done (2026-09-01, see above): all six options pressed against the real
    scripts, `n` skips 3-6 cleanly, 1/2/R/Q work, zero side effects. What is
    left needs a human to clear the UAC prompt - no automated session can.
+6. [ ] Make each script read the current value BEFORE offering to change it,
+   and say `already at target - nothing to change` instead of performing a
+   no-op (and, for 3, a pointless ~5s NIC bounce). Measured 2026-09-01: on an
+   already-tuned box every targeted value was already correct, and the menu
+   still offered the change as if it would do something. Touches all six
+   scripts; new scope, not yet asked for.
 5. [x] Gate stage: every key in a menu row's `args` hashtable is asserted to
    be a declared parameter of that row's script, by the Parser, nothing run.
    Shipped 2026-09-01 as preflight stage 9 - 36 ok exit 0 unelevated, and
