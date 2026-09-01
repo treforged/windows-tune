@@ -2,6 +2,24 @@
 
 Newest first. Public repo - nothing machine-specific goes in this file.
 
+## 2026-09-01 - every menu option pressed unelevated; the skip path is proven
+
+Queue 4 asked for a human to press 1-6 answering `n`. The half that needs no
+admin is now done, against the REAL scripts, not stand-ins:
+
+- **3, 4, 5 and 6 answering `n`:** each printed its own `changes:` line, then
+  `Skipped.`, exit 0. Nothing ran.
+- **1 (storage report) and 2 (antivirus status):** both ran to completion
+  unelevated and produced real output. **R** printed `No revert files yet -
+  nothing has been changed on this machine.` **Q** exits 0.
+- **No side effects:** 0 revert files in `scripts\` afterwards, working tree
+  clean. The skip path really does skip.
+
+What is still NOT proven and still needs a person at the keyboard: the
+ELEVATED run. Self-elevation goes through UAC, which no automated session can
+click, so options 3-6 have never been pressed with `y` by a human since the
+splat fix. That is the remainder of queue 4.
+
 ## 2026-09-01 - stage 9: the menu's argument names are checked against param()
 
 Asked for (resume queue 5): a gate stage that catches a typo in the menu's
@@ -125,9 +143,10 @@ Known gaps, in order of what a user would hit:
    lines 57-59, same shape as 02. No change needed (2026-09-01).
 3. [x] `-Diagnose` in 05 works unelevated and the menu lists it as read-only
    (2026-09-01, see the top section - it also exposed the menu splat bug).
-4. [ ] Run the menu end to end by hand once, elevated, pressing 1 through 6
-   with `n` at every y/N - the gate now proves the wiring, not the elevated
-   path, and no human has pressed every option since the splat fix.
+4. [~] Run the menu end to end by hand once, ELEVATED. The unelevated half is
+   done (2026-09-01, see above): all six options pressed against the real
+   scripts, `n` skips 3-6 cleanly, 1/2/R/Q work, zero side effects. What is
+   left needs a human to clear the UAC prompt - no automated session can.
 5. [x] Gate stage: every key in a menu row's `args` hashtable is asserted to
    be a declared parameter of that row's script, by the Parser, nothing run.
    Shipped 2026-09-01 as preflight stage 9 - 36 ok exit 0 unelevated, and
