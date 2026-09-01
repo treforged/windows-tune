@@ -88,6 +88,30 @@ own machine, do not keep it. `05 -AddDevExclusions` is opt-in for that reason.
 `python`/`node`/`git` spawn gets scanned before it runs. On a machine driving
 agent tooling that fires several subprocesses per action, it dominates.
 
+## Install
+
+Read [NOTICE.md](NOTICE.md) first. It is short and it is the whole risk and
+privacy story; the menu shows it and will not run anything until you type
+`I ACCEPT`.
+
+**Easiest:** Code > Download ZIP, extract it anywhere, double-click
+`Run-WindowsTune.cmd`. It opens the menu, asks for administrator rights once,
+and runs one script at a time with a y/N confirmation before every change.
+
+**From PowerShell:** download the installer, read it, then run it. It puts the
+repo in `%LOCALAPPDATA%\windows-tune` and runs nothing:
+
+```powershell
+Invoke-WebRequest https://raw.githubusercontent.com/treforged/windows-tune/main/install.ps1 -OutFile install.ps1
+notepad .\install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+There is deliberately no `irm <url> | iex` one-liner. Download-and-execute in
+one step is the ClickFix malware pattern, Windows Defender flags that exact
+string as `Trojan:Win32/ClickFix.PM!MTB`, and a tool about undoing bad tweaks
+should not teach the habit.
+
 ## Scripts
 
 Run elevated, in order, or individually. All are `-WhatIf`-free but all write
@@ -95,6 +119,8 @@ a `*-revert.ps1` beside themselves first.
 
 | Script | Does |
 | --- | --- |
+| `windows-tune.ps1` / `Run-WindowsTune.cmd` | The menu. Shows NOTICE.md, requires `I ACCEPT`, elevates once, confirms every change, lists revert files. |
+| `install.ps1` | Downloads the repo zip to `%LOCALAPPDATA%\windows-tune` and unblocks it. Runs nothing. |
 | `01-network-tune.ps1` | Restores auto-tuning, RSS, RSC and NIC offloads; disables NIC power saving. Tier A applies live; Tier B stages until `-BounceAdapter` or reboot. |
 | `02-power-tune.ps1` | Minimum processor state → 0%, ceiling untouched. |
 | `03-storage-report.ps1` | Read-only. Largest folders per drive; every Steam game with **real** last-played dates; Epic/Xbox by size. |
@@ -135,6 +161,14 @@ state, not from assumed defaults.
 - Nothing here touches firewall rules, UAC, SmartScreen, or Secure Boot.
 - Measure before and after. If a change does not show up in a measurement on
   *your* hardware, revert it — that is the entire point of the revert files.
+
+## Testing
+
+`tests\preflight.ps1` parses every script, checks the notice is ASCII, greps the
+tree for pipe-to-iex, drives the menu's notice gate (missing -> exit 2,
+declined -> exit 3, `-Choice R` read-only), and runs `install.ps1 -FromZip`
+against a zip of the working tree into a temp folder. Non-zero exit on any
+failure. No admin needed.
 
 ## Licence
 
