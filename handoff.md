@@ -98,3 +98,9 @@ Known gaps, in order of what a user would hit:
 4. [ ] Run the menu end to end by hand once, elevated, pressing 1 through 6
    with `n` at every y/N - the gate now proves the wiring, not the elevated
    path, and no human has pressed every option since the splat fix.
+5. [ ] Gate stage: for every menu row in `windows-tune.ps1`, parse the target
+   script's `param()` block (the Parser, no execution) and assert each key in
+   the row's `args` hashtable is a declared parameter. A typo like
+   `Diagnos = $true` would today pass every stage and fail only when a user
+   presses the option. Keep it in `tests/preflight.ps1`, prove it can fail
+   with a planted bad key, then handoff.
