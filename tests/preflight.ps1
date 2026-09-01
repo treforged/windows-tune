@@ -23,6 +23,8 @@
          05-defender-handover.ps1 -Diagnose from a normal prompt: exit 0, a
          REAL-TIME PROTECTION line, no admin refusal. Run this gate UNELEVATED
          or stage 8 proves nothing - it says which it was.
+      9. Static: every key in a menu row's args hashtable is a declared
+         parameter of that row's script (Parser on both files, nothing run).
 #>
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -131,6 +133,42 @@ if ($LASTEXITCODE -eq 0 -and $text -match 'REAL-TIME PROTECTION:' -and $text -no
     if ($elevated) { Pass 'Choice 2 (05 -Diagnose) ran - but this gate is ELEVATED, so the no-admin path is not proven; rerun from a normal prompt' }
     else           { Pass 'Choice 2 (05 -Diagnose) works without admin' }
 } else { Fail "Choice 2 (05 -Diagnose) unelevated: exit $LASTEXITCODE`n$text" }
+
+# 9. static: every args key the menu passes exists in the target script's param()
+#    block. Parser only - nothing is dot-sourced or run. A typo like `Diagnos = $true`
+#    would pass every other stage and fail only when a user presses the option.
+#    $assign.Right is a CommandExpressionAst wrapping [ordered]@{...}; the table is
+#    the HashtableAst inside it, each row is another HashtableAst one level down.
+$errors = $null
+$menuAst = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $repo 'windows-tune.ps1'), [ref]$null, [ref]$errors)
+$assign = $menuAst.FindAll({ param($n) $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left -is [System.Management.Automation.Language.VariableExpressionAst] -and $n.Left.VariablePath.UserPath -eq 'menu' }, $true) | Select-Object -First 1
+$table = if ($assign) { $assign.Right.Find({ param($n) $n -is [System.Management.Automation.Language.HashtableAst] }, $true) } else { $null }
+$rows = if ($table) { @($table.KeyValuePairs) } else { @() }
+$named = 0
+foreach ($pair in $rows) {
+    $key = $pair.Item1.Value
+    $row = $pair.Item2.PipelineElements[0].Expression
+    $name = $row.KeyValuePairs | Where-Object { $_.Item1.Value -eq 'name' } | Select-Object -First 1 | ForEach-Object { $_.Item2.PipelineElements[0].Expression.Value }
+    if ([string]::IsNullOrWhiteSpace($name)) { continue }
+    $named++
+    $argsAst = $row.KeyValuePairs | Where-Object { $_.Item1.Value -eq 'args' } | Select-Object -First 1 | ForEach-Object { $_.Item2.PipelineElements[0].Expression }
+    $scriptPath = Join-Path $repo "scripts\$name"
+    if (-not (Test-Path $scriptPath)) { Fail "menu ${key}: scripts\$name does not exist"; continue }
+    $errors = $null
+    $scriptAst = [System.Management.Automation.Language.Parser]::ParseFile($scriptPath, [ref]$null, [ref]$errors)
+    if ($errors.Count) { Fail "menu ${key}: scripts\$name does not parse: $($errors[0].Message)"; continue }
+    $declared = @($scriptAst.ParamBlock.Parameters | ForEach-Object { $_.Name.VariablePath.UserPath })
+    if (-not $argsAst -or $argsAst.KeyValuePairs.Count -eq 0) {
+        Pass "menu ${key}: $name takes no arguments"
+    } else {
+        foreach ($argPair in $argsAst.KeyValuePairs) {
+            $argName = $argPair.Item1.Value
+            if ($declared -contains $argName) { Pass "menu ${key}: -$argName is a parameter of $name" }
+            else { Fail "menu ${key}: -$argName is not a parameter of $name (declared: $($declared -join ', '))" }
+        }
+    }
+}
+if ($named -eq 0) { Fail 'menu table not found in windows-tune.ps1 - stage 9 checked nothing' }
 
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green
