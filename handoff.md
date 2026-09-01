@@ -5,6 +5,31 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-09-01 - published head re-verified end to end from a stranger's side
+
+No code change. `8905097` (the head carrying the splat fix and stage 9) was
+checked the way a stranger meets it, not the way we meet it:
+
+- **Clean clone from github.com**, gate run inside it: 36 ok, exit 0.
+- **Live install path**, not `-FromZip`: `install.ps1` fetched from
+  `raw.githubusercontent` (SHA-256 matches the published copy), run with the
+  real zip download. Exit 0, 15 files, 0 `Zone.Identifier` streams, 0 temp
+  `windows-tune-*` folders left behind, **0 content differences** against the
+  published clone across all 15 files.
+- **The installed copy then works**: its own gate is green, `R` exits 0, and
+  `2` (`05 -Diagnose`) runs read-only unelevated. Zero revert files created.
+
+Worth keeping, because it nearly shipped a false green: the first run of that
+content diff **passed while comparing nothing**. The `-notmatch '\\.git\\'`
+filter was mangled to an illegal regex (a Bash heredoc collapses `\\` to `\`
+before PowerShell sees it), so `Where-Object` threw once per file, no file
+reached the loop, and the script cheerfully printed `content diffs: 0`. It was
+rewritten to a `-notlike "*\.git\*"` match, to **refuse to run** if fewer than
+10 files survive the filter, and to prove itself by tampering with an installed
+`NOTICE.md` and confirming it is detected before restoring it. A check that
+passes everything is worth nothing - the same lesson stage 3e and stage 9 were
+built on.
+
 ## 2026-09-01 - every menu option pressed unelevated; the skip path is proven
 
 Queue 4 asked for a human to press 1-6 answering `n`. The half that needs no
