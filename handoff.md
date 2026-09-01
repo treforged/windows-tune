@@ -2,6 +2,9 @@
 
 Newest first. Public repo - nothing machine-specific goes in this file.
 
+Resume this desk on **Opus** (the manager default since 2026-09-02).
+Earlier resume briefs said to start on Fable; they are out of date.
+
 ## 2026-09-01 - every menu option pressed unelevated; the skip path is proven
 
 Queue 4 asked for a human to press 1-6 answering `n`. The half that needs no
