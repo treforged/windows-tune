@@ -21,6 +21,13 @@
       * The Security Center registration itself, which is owned by the other
         vendor's WSC agent and re-evaluated at boot.
 
+    THE SHORTCUT MOST PEOPLE MISS: Tamper Protection blocks SCRIPTS from
+    enabling Defender. It does NOT block Windows from promoting Defender by
+    itself once no third-party AV holds the Security Center registration. So
+    fully UNINSTALLING the other product (see 06) usually beats every repair
+    here - it needs no Tamper Protection toggle and frequently no reboot. Reach
+    for -Repair only when you intend to keep the other AV installed.
+
     So: -Diagnose tells you the truth, -Repair does the safe subset, and both
     tell you plainly when a reboot or a manual UI step is the only way forward.
 
@@ -123,14 +130,34 @@ if ($status.RealTimeProtectionEnabled) {
     try { Update-MpSignature -ErrorAction Stop; Write-Host '  signatures updated' } catch { Write-Warning "  signature update failed: $($_.Exception.Message)" }
 
     if ($AddDevExclusions) {
-        foreach ($p in @('python.exe','pythonw.exe','node.exe','powershell.exe','pwsh.exe','git.exe','bash.exe','ollama.exe','msbuild.exe','cargo.exe','go.exe')) {
-            try { Add-MpPreference -ExclusionProcess $p -ErrorAction Stop; Write-Host "  excl process: $p" } catch {}
+        # Add-MpPreference does not always throw when the write is discarded -
+        # notably while Defender is still settling after a handover, when it
+        # reports success and stores nothing. Every value is therefore read back
+        # and confirmed rather than reported from the call.
+        # Measured note: on the reference machine these exclusions made no
+        # difference to shell spawn time once the competing scanner was gone.
+        # Keep them only if they show up in a measurement on YOUR machine.
+        $wantProc = @('python.exe','pythonw.exe','node.exe','powershell.exe','pwsh.exe','git.exe','bash.exe','ollama.exe','msbuild.exe','cargo.exe','go.exe')
+        $wantPath = @("$env:USERPROFILE\.claude", "$env:USERPROFILE\.ollama", "$env:USERPROFILE\.cargo",
+                      "$env:USERPROFILE\go", "$env:LOCALAPPDATA\Programs\Ollama") | Where-Object { Test-Path $_ }
+
+        foreach ($p in $wantProc) { try { Add-MpPreference -ExclusionProcess $p -ErrorAction Stop } catch {} }
+        foreach ($p in $wantPath) { try { Add-MpPreference -ExclusionPath   $p -ErrorAction Stop } catch {} }
+
+        $now     = Get-MpPreference
+        $gotProc = @($wantProc | Where-Object { $now.ExclusionProcess -contains $_ })
+        $gotPath = @($wantPath | Where-Object { $now.ExclusionPath    -contains $_ })
+        Write-Host "  processes: $($gotProc.Count)/$($wantProc.Count) stored"
+        Write-Host "  paths:     $($gotPath.Count)/$($wantPath.Count) stored"
+
+        if ($gotProc.Count -eq 0 -and $wantProc.Count -gt 0) {
+            Write-Host ''
+            Write-Host '  NONE of the exclusions were stored - the add calls reported success' -ForegroundColor Yellow
+            Write-Host '  and nothing was written. Usually Defender has not finished settling.' -ForegroundColor Yellow
+            Write-Host "  Wait for AMRunningMode 'Normal' and re-run, add them via Windows" -ForegroundColor Yellow
+            Write-Host '  Security > Exclusions, or skip them: removing a competing scanner is' -ForegroundColor Yellow
+            Write-Host '  the real win and exclusions may buy nothing measurable.' -ForegroundColor Yellow
         }
-        foreach ($p in @("$env:USERPROFILE\.claude", "$env:USERPROFILE\.ollama", "$env:USERPROFILE\.cargo",
-                         "$env:USERPROFILE\go", "$env:LOCALAPPDATA\Programs\Ollama")) {
-            if (Test-Path $p) { try { Add-MpPreference -ExclusionPath $p -ErrorAction Stop; Write-Host "  excl path: $p" } catch {} }
-        }
-        Write-Host '  Add your own repo roots with: Add-MpPreference -ExclusionPath <dir>' -ForegroundColor Cyan
     }
 } else {
     Write-Host 'Defender STILL not protecting.' -ForegroundColor Red

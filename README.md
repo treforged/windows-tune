@@ -17,6 +17,7 @@ Ryzen 7 7700X · RTX 4070 Super 12 GB · 32 GB DDR5 · 2.5 GbE · Windows 11 Pro
 | WinSxS component store | 21.0 GB | **14.9 GB** |
 | GPU idle | 50 °C / 35 W | 43 °C / 20 W |
 | Local LLM prompt processing | 118 tok/s | **1,036 tok/s** |
+| PowerShell spawn | 598 ms | **~120 ms** |
 
 ## The findings worth knowing
 
@@ -47,8 +48,41 @@ nothing.** Windows stands Defender down when another AV registers with the
 Security Center. Turn that AV's scanner off but leave it installed, and the
 registration persists: the third-party scanner is off, Defender has not taken
 over, and no loud warning appears. `05-defender-handover.ps1` detects exactly
-this state. **Tamper Protection cannot be scripted around** — that is its
-purpose — so any script claiming to force Defender back on past it is lying.
+this state.
+
+**Uninstalling beats disabling, and this is the whole trick.** Tamper Protection
+stops *scripts* from enabling Defender or writing its settings — that is its
+purpose, and any tool claiming to force past it is lying. But it does **not**
+stop Windows from promoting Defender by itself once no other product holds the
+Security Center registration. Remove the other AV and Windows does the handover,
+past Tamper Protection, because Windows is the one doing it. On the reference
+machine that took Defender from fully disabled (`DisableAntiSpyware=1`,
+`WinDefend` stopped, signatures 7 months stale) to `AMRunningMode: Normal` with
+current signatures **seconds later, with no reboot** — after two hours of
+scripted repair had achieved nothing.
+
+**Check whether you actually use the thing you are protecting.** The removal
+above was only obvious once the bundled VPN's adapter was measured: 0 bytes in,
+0 bytes out. The constraint "keep the VPN" had been taken at face value and was
+never load-bearing. Measure the thing before you engineer around it.
+
+**A call that does not throw is not a call that worked.** `Add-MpPreference`
+returns quietly when Defender is still settling after a handover: eleven
+exclusions reported success and none were stored. Only reading
+`Get-MpPreference` back revealed it, so `05` now verifies every exclusion
+rather than trusting the write.
+
+The first guess at the cause was Tamper Protection, and that was wrong.
+Re-running once `AMRunningMode` reached `Normal` stored 11/11 with Tamper
+Protection still on. The real rule is narrower: **wait for Defender to reach
+`Normal` before configuring it**, and verify afterwards either way. Recorded
+because the wrong cause was the plausible one.
+
+**Developer exclusions were measured, then removed.** Shell spawn was 115-123 ms
+with them and 111-137 ms without: no difference outside noise. The speedup came
+entirely from removing the competing scanner. Excluding your interpreters
+shrinks the protection surface, so unless it shows up in a measurement on your
+own machine, do not keep it. `05 -AddDevExclusions` is opt-in for that reason.
 
 **Real-time AV scanning of interpreters is a large hidden tax.** Every
 `python`/`node`/`git` spawn gets scanned before it runs. On a machine driving
@@ -65,7 +99,8 @@ a `*-revert.ps1` beside themselves first.
 | `02-power-tune.ps1` | Minimum processor state → 0%, ceiling untouched. |
 | `03-storage-report.ps1` | Read-only. Largest folders per drive; every Steam game with **real** last-played dates; Epic/Xbox by size. |
 | `04-component-cleanup.ps1` | True WinSxS size, then reclaims superseded packages. `/ResetBase` opt-in only. |
-| `05-defender-handover.ps1` | Diagnoses the "no AV at all" state; repairs what a script safely can; adds developer exclusions once protection is genuinely on. |
+| `05-defender-handover.ps1` | Diagnoses the "no AV at all" state; repairs what a script safely can; adds developer exclusions once protection is genuinely on, and **verifies they were actually stored**. |
+| `06-remove-third-party-av.ps1` | Fully uninstalls an MSI-based third-party AV and waits for Windows to hand protection back to Defender. Usually needs no reboot and no Tamper Protection toggle. |
 
 ```powershell
 # see what is wrong, change nothing
@@ -76,6 +111,10 @@ a `*-revert.ps1` beside themselves first.
 .\scripts\01-network-tune.ps1 -BounceAdapter
 .\scripts\02-power-tune.ps1
 .\scripts\04-component-cleanup.ps1
+
+# a third-party AV switched off but Defender still not running?
+# remove it properly instead of fighting Defender
+.\scripts\06-remove-third-party-av.ps1 -Name Surfshark
 ```
 
 ## Reverting
@@ -90,7 +129,9 @@ state, not from assumed defaults.
   boost-CPU-specific (Zen 2+, Intel Turbo).
 - `01` and `02` are reversible and low-risk. `04` is irreversible in the sense
   that reclaimed packages are gone, though nothing you use is removed.
-- `05` changes security posture. Read it before running it.
+- `05` and `06` change security posture. Read them before running them.
+- `06` uninstalls software. Confirm you do not rely on the product first -
+  many AV suites bundle a VPN or password manager you may still want.
 - Nothing here touches firewall rules, UAC, SmartScreen, or Secure Boot.
 - Measure before and after. If a change does not show up in a measurement on
   *your* hardware, revert it — that is the entire point of the revert files.
