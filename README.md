@@ -170,6 +170,12 @@ declined -> exit 3, `-Choice R` read-only), and runs `install.ps1 -FromZip`
 against a zip of the working tree into a temp folder. Non-zero exit on any
 failure. No admin needed.
 
+## Security
+
+Found something exploitable? Use the Security tab's private vulnerability
+reporting or email contact@treforged.com - see [SECURITY.md](SECURITY.md)
+for what counts, what does not, and the response window.
+
 ## Licence
 
 MIT.
