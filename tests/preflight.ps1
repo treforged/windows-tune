@@ -8,7 +8,7 @@
       1. Every .ps1 parses (PowerShell parser, no execution).
       2. NOTICE.md, install.ps1, windows-tune.ps1, the .cmd are ASCII.
       3. No file in the repo pipes a download into Invoke-Expression, except
-         NOTICE.md and README.md, which explain why we do not.
+         the four docs (NOTICE, README, SECURITY, handoff) that explain why not.
       4. windows-tune.ps1: missing NOTICE.md -> exit 2, nothing run.
       5. windows-tune.ps1: notice declined -> exit 3, nothing run.
       6. windows-tune.ps1 -Choice R -AcceptRisk -NoElevate -> exit 0 and lists
@@ -38,8 +38,9 @@ foreach ($n in 'NOTICE.md', 'install.ps1', 'windows-tune.ps1', 'Run-WindowsTune.
     if ($bad) { Fail "$n has $bad non-ASCII bytes" } else { Pass "$n is ASCII" }
 }
 
-# 3. no pipe-to-iex anywhere but the two files that warn about it
-$hits = Get-ChildItem $repo -Recurse -File | Where-Object { $_.FullName -notmatch '\\(\.git|tests)\\' -and $_.Extension -ne '.md' } |
+# 3. no pipe-to-iex anywhere but the docs that warn about it. An explicit list, not
+#    an extension: a new INSTALL.md or QUICKSTART.md must be scanned by default.
+$hits = Get-ChildItem $repo -Recurse -File | Where-Object { $_.FullName -notmatch '\\(\.git|tests)\\' -and $_.Name -notin 'NOTICE.md', 'README.md', 'SECURITY.md', 'handoff.md' } |
     Select-String -Pattern '\|\s*(iex|Invoke-Expression)\b', 'DownloadString' -SimpleMatch:$false
 if ($hits) { foreach ($h in $hits) { Fail "pipe-to-iex in $($h.Filename):$($h.LineNumber)" } } else { Pass 'no pipe-to-iex outside the notice' }
 
