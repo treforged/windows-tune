@@ -2,6 +2,36 @@
 
 Newest first. Public repo - nothing machine-specific goes in this file.
 
+## 2026-09-01 - the menu never ran options 2 or 3; 05 -Diagnose needs no admin
+
+Asked for (resume queue 3): a `-Diagnose` path in 05 that works unelevated so
+the menu's read-only list can include it. Shipped, and it found a worse bug on
+the way:
+
+- **Menu options 2 and 3 had never worked.** `& $scriptPath @($item.args)` is
+  an array expression, not a splat: the whole list landed as ONE positional
+  `Object[]` and the script refused it before running. Options with an empty
+  list happened to work, and the gate pressed only R and Q. An array splat is
+  not the fix either - `'-Diagnose'` binds as a positional string, not the
+  switch. The table now holds hashtables and the menu splats them by name.
+- `05 -Diagnose` only reads, so the admin check is now `-Repair`-only (still
+  thrown up front). Pressed from a normal prompt: `-Diagnose` reports fully,
+  exit 0; `-Repair` refuses, exit 1, before touching anything. The menu,
+  NOTICE and README now say 1, 2 and R work unelevated.
+- 05 prints `REAL-TIME PROTECTION: UNKNOWN` when `Get-MpComputerStatus`
+  returns nothing, instead of UNPROTECTED. No reading is not a reading.
+- Gate: stand-in scripts in the scratch copy press the menu wiring for both
+  argument shapes (`-Choice 1` -> `ARGS=0`, `-Choice 3 -Yes` -> `BOUNCE=True`),
+  and stage 8 runs the real `-Choice 2` unelevated and says whether the gate
+  itself was elevated. It is red on the splat bug, red on the array half-fix,
+  and red on its own first regex (`elevated PowerShell` matched NOTICE.md,
+  which the menu prints first) - all three seen this session. 30/30 green,
+  exit 0, unelevated Windows PowerShell 5.1.
+
+Lesson worth keeping: **a menu whose options are never pressed is a list of
+labels.** The gate must call every option's wiring, with stand-ins where the
+real script is slow or destructive.
+
 ## 2026-09-01 - gate verified against the published repo (d91c0c6, no code change)
 
 Asked for: prove `tests/preflight.ps1` passes on a CLEAN CLONE of origin/main,
@@ -50,9 +80,6 @@ is the documented path; NOTICE.md and README.md say why.
 
 Known gaps, in order of what a user would hit:
 
-- `05-defender-handover.ps1 -Diagnose` needs admin even though it is
-  read-only; the menu's "read-only options work unelevated" line names only
-  1 and R for that reason.
 - Only tested on the reference machine (Windows 11 Pro, desktop). No
   Windows 10 / Home / laptop / ARM run yet.
 - `tests/preflight.ps1` cannot test elevation (UAC). The live download is
@@ -66,5 +93,8 @@ Known gaps, in order of what a user would hit:
    machine.)
 2. [x] Admin check in `06-remove-third-party-av.ps1` - already present at
    lines 57-59, same shape as 02. No change needed (2026-09-01).
-3. [ ] Consider a `-Diagnose` path in 05 that works unelevated, so the menu's
-   read-only list can include it.
+3. [x] `-Diagnose` in 05 works unelevated and the menu lists it as read-only
+   (2026-09-01, see the top section - it also exposed the menu splat bug).
+4. [ ] Run the menu end to end by hand once, elevated, pressing 1 through 6
+   with `n` at every y/N - the gate now proves the wiring, not the elevated
+   path, and no human has pressed every option since the splat fix.
