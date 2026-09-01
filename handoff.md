@@ -24,6 +24,13 @@ changed:
   lines 57-59 carry the same `IsInRole(Administrator)` throw as 01/02/04/05,
   confirmed on origin/main with `git grep`. Removed from the gaps below.
 
+- Follow-up the same session (`741e5b8`): `d91c0c6` had widened the pipe-to-iex
+  gate to skip ALL Markdown, which is exactly where install instructions live.
+  Back to an explicit allowlist (NOTICE, README, SECURITY, handoff); any new
+  doc is scanned by default. Proven: a planted `INSTALL.md` fails the gate
+  (exit 1, names the line), so does `docs/setup.md`, green once removed;
+  fresh clone at `741e5b8` is 27/27 green.
+
 Still only one machine has run any of this. A second box is the real next test.
 
 ## 2026-09-02 - installer, menu, notice (a81f62c)
