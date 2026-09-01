@@ -1,0 +1,5 @@
+# Generated at runtime - machine-specific, never share these
+*-revert.ps1
+*.log
+storage.txt
+evals/
