@@ -166,9 +166,11 @@ state, not from assumed defaults.
 
 `tests\preflight.ps1` parses every script, checks the notice is ASCII, greps the
 tree for pipe-to-iex, drives the menu's notice gate (missing -> exit 2,
-declined -> exit 3, `-Choice R` read-only), and runs `install.ps1 -FromZip`
-against a zip of the working tree into a temp folder. Non-zero exit on any
-failure. No admin needed.
+declined -> exit 3, `-Choice R` read-only, `-Choice 2` runs the antivirus
+status check without admin), and runs `install.ps1 -FromZip` against a zip of
+the working tree into a temp folder. Non-zero exit on any failure. No admin
+needed - run it from a normal prompt, or the `-Choice 2` stage cannot prove
+the no-admin path and says so.
 
 ## Security
 

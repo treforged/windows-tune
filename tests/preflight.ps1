@@ -12,10 +12,17 @@
       4. windows-tune.ps1: missing NOTICE.md -> exit 2, nothing run.
       5. windows-tune.ps1: notice declined -> exit 3, nothing run.
       6. windows-tune.ps1 -Choice R -AcceptRisk -NoElevate -> exit 0 and lists
-         (or reports no) revert files without touching anything.
+         (or reports no) revert files without touching anything. Then, with
+         stand-in scripts that only echo how they were called: -Choice 1
+         reaches its script with no arguments, -Choice 3 -Yes reaches its
+         script with -BounceAdapter as a switch (the menu's splat).
       7. install.ps1 -FromZip <zip built from this tree> -Path <temp>:
          files land, are unblocked, a pre-existing revert file survives,
          temp files cleaned up.
+      8. windows-tune.ps1 -Choice 2 -AcceptRisk -NoElevate runs
+         05-defender-handover.ps1 -Diagnose from a normal prompt: exit 0, a
+         REAL-TIME PROTECTION line, no admin refusal. Run this gate UNELEVATED
+         or stage 8 proves nothing - it says which it was.
 #>
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -68,6 +75,19 @@ try {
     $out = & $ps -NoProfile -ExecutionPolicy Bypass -File $menu -AcceptRisk -NoElevate -Choice R
     if ($LASTEXITCODE -eq 0 -and ($out -join "`n") -match '02-power-tune-revert\.ps1') { Pass 'Choice R lists an existing revert file' }
     else { Fail 'Choice R did not list the revert file' }
+
+    # the menu's wiring for both argument shapes, against stand-ins that only echo.
+    # Found by stage 8 on 2026-09-01: @($item.args) went in as ONE positional
+    # Object[] and every option with an argument failed before its script ran.
+    Set-Content (Join-Path $scratch 'scripts\03-storage-report.ps1') '"ARGS=$($args.Count)"' -Encoding ascii
+    $out = & $ps -NoProfile -ExecutionPolicy Bypass -File $menu -AcceptRisk -NoElevate -Choice 1
+    if ($LASTEXITCODE -eq 0 -and ($out -join "`n") -match 'ARGS=0') { Pass 'Choice 1 reaches its script with no arguments' }
+    else { Fail "Choice 1 wiring: exit $LASTEXITCODE`n$($out -join "`n")" }
+
+    Set-Content (Join-Path $scratch 'scripts\01-network-tune.ps1') 'param([switch]$BounceAdapter) "BOUNCE=$BounceAdapter"' -Encoding ascii
+    $out = & $ps -NoProfile -ExecutionPolicy Bypass -File $menu -AcceptRisk -NoElevate -Yes -Choice 3
+    if ($LASTEXITCODE -eq 0 -and ($out -join "`n") -match 'BOUNCE=True') { Pass 'Choice 3 -Yes reaches its script with -BounceAdapter as a switch' }
+    else { Fail "Choice 3 wiring: exit $LASTEXITCODE`n$($out -join "`n")" }
 } finally { Remove-Item -Recurse -Force $scratch }
 
 # 7. the installer, offline, from a zip of this tree
@@ -99,6 +119,18 @@ try {
     Remove-Item -Recurse -Force $zipDir -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force $target -ErrorAction SilentlyContinue
 }
+
+# 8. the antivirus status check (menu 2 -> 05 -Diagnose) needs no admin. The menu
+#    catches a script's throw and exits 0 anyway, so the OUTPUT is what is checked -
+#    against the script's own refusal and the menu's "failed:" line, not the word
+#    "elevated", which NOTICE.md (printed first) uses twice.
+$elevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$out = & $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'windows-tune.ps1') -AcceptRisk -NoElevate -Choice 2
+$text = $out -join "`n"
+if ($LASTEXITCODE -eq 0 -and $text -match 'REAL-TIME PROTECTION:' -and $text -notmatch 'Run this from an elevated|\.ps1 failed:') {
+    if ($elevated) { Pass 'Choice 2 (05 -Diagnose) ran - but this gate is ELEVATED, so the no-admin path is not proven; rerun from a normal prompt' }
+    else           { Pass 'Choice 2 (05 -Diagnose) works without admin' }
+} else { Fail "Choice 2 (05 -Diagnose) unelevated: exit $LASTEXITCODE`n$text" }
 
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green

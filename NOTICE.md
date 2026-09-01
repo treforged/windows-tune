@@ -26,7 +26,8 @@ at your own risk, and the author collects nothing from you or your machine.
   Windows Defender / third-party antivirus state. With `-Repair` it clears
   Defender's disable keys and sets its services to automatic. With
   `-AddDevExclusions` it adds Defender exclusions for developer tools, which
-  reduces what gets scanned. Needs admin.
+  reduces what gets scanned. The default diagnosis needs no admin; `-Repair`
+  and `-AddDevExclusions` do.
 - **06-remove-third-party-av.ps1** - **uninstalls** an MSI-based third-party
   antivirus product you name, including anything bundled with it (a VPN, a
   password manager), after a y/N prompt; `-Force` skips the prompt. Writes an

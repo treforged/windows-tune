@@ -54,8 +54,12 @@ param(
 $ErrorActionPreference = 'Continue'
 if (-not $Diagnose -and -not $Repair) { $Diagnose = $true }
 
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    throw 'Run this from an elevated PowerShell (Run as administrator).'
+# -Diagnose only reads (Security Center, services, two registry keys,
+# Get-MpComputerStatus) and works from a normal prompt. Only -Repair writes,
+# so only -Repair needs administrator rights - checked up front so nothing is
+# half-done when it refuses.
+if ($Repair -and -not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    throw 'Run this from an elevated PowerShell (Run as administrator) to use -Repair. -Diagnose works without it.'
 }
 
 # ------------------------------------------------------------------ diagnose
@@ -80,9 +84,13 @@ if ($sig.SignaturesLastUpdated) {
 }
 
 $status = Get-MpComputerStatus -ErrorAction SilentlyContinue
-$protected = [bool]$status.RealTimeProtectionEnabled
 Write-Host ''
-if ($protected) {
+if ($null -eq $status) {
+    # No reading is not the same as OFF. Say so rather than shout UNPROTECTED
+    # on a machine where the Defender platform is simply absent or unreadable.
+    Write-Host 'REAL-TIME PROTECTION: UNKNOWN - Get-MpComputerStatus returned nothing' -ForegroundColor Yellow
+    Write-Host '(Defender platform missing, disabled by policy, or not readable here). No claim either way.' -ForegroundColor Yellow
+} elseif ($status.RealTimeProtectionEnabled) {
     Write-Host 'REAL-TIME PROTECTION: ON' -ForegroundColor Green
 } else {
     Write-Host 'REAL-TIME PROTECTION: OFF - this machine is UNPROTECTED' -ForegroundColor Red

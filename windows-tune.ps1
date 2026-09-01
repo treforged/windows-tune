@@ -20,8 +20,9 @@
     before a change - see -Yes.
 
 .PARAMETER NoElevate
-    Do not relaunch elevated. Only the storage report (1) and the revert-file
-    listing (R) work without administrator rights; the rest will refuse.
+    Do not relaunch elevated. Only the storage report (1), the antivirus status
+    check (2) and the revert-file listing (R) work without administrator
+    rights; the rest will refuse.
 
 .PARAMETER Yes
     Answer y to the "Run it?" confirmation. Never answers the I ACCEPT prompt.
@@ -64,7 +65,7 @@ if (-not $AcceptRisk) {
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
     if ($NoElevate) {
-        Write-Host 'Not elevated: only the storage report (1) and the revert list (R) will work.' -ForegroundColor Yellow
+        Write-Host 'Not elevated: only the storage report (1), the antivirus status check (2) and the revert list (R) will work.' -ForegroundColor Yellow
     } else {
         $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-AcceptRisk')
         if ($Choice) { $argList += @('-Choice', $Choice) }
@@ -77,18 +78,18 @@ if (-not $isAdmin) {
 # ---- The menu. Script names and arguments are fixed here, never typed. ------
 $scriptsDir = Join-Path $here 'scripts'
 $menu = [ordered]@{
-    '1' = @{ name = '03-storage-report.ps1';       args = @();                label = 'Storage report (read-only)';           changes = '' }
-    '2' = @{ name = '05-defender-handover.ps1';    args = @('-Diagnose');     label = 'Antivirus status check (read-only)';   changes = '' }
-    '3' = @{ name = '01-network-tune.ps1';         args = @('-BounceAdapter'); label = 'Network tune';
+    '1' = @{ name = '03-storage-report.ps1';       args = @{};                        label = 'Storage report (read-only)';           changes = '' }
+    '2' = @{ name = '05-defender-handover.ps1';    args = @{ Diagnose = $true };      label = 'Antivirus status check (read-only)';   changes = '' }
+    '3' = @{ name = '01-network-tune.ps1';         args = @{ BounceAdapter = $true }; label = 'Network tune';
              changes = 'TCP auto-tuning, RSS, RSC, NIC offloads and NIC power-saving; bounces the adapter; writes 01-network-tune-revert.ps1' }
-    '4' = @{ name = '02-power-tune.ps1';           args = @();                label = 'Power tune';
+    '4' = @{ name = '02-power-tune.ps1';           args = @{};                        label = 'Power tune';
              changes = 'Minimum processor state of the active power plan; writes 02-power-tune-revert.ps1' }
-    '5' = @{ name = '04-component-cleanup.ps1';    args = @();                label = 'Component store cleanup';
+    '5' = @{ name = '04-component-cleanup.ps1';    args = @{};                        label = 'Component store cleanup';
              changes = 'Removes superseded Windows update packages - NOT reversible' }
-    '6' = @{ name = '06-remove-third-party-av.ps1'; args = @();               label = 'Remove a third-party antivirus';
+    '6' = @{ name = '06-remove-third-party-av.ps1'; args = @{};                       label = 'Remove a third-party antivirus';
              changes = 'UNINSTALLS a product you name - NOT reversible; the script asks for the product name itself' }
-    'R' = @{ name = '';                            args = @();                label = 'List revert files';                    changes = '' }
-    'Q' = @{ name = '';                            args = @();                label = 'Quit';                                 changes = '' }
+    'R' = @{ name = '';                            args = @{};                        label = 'List revert files';                    changes = '' }
+    'Q' = @{ name = '';                            args = @{};                        label = 'Quit';                                 changes = '' }
 }
 
 function Show-RevertFiles {
@@ -132,8 +133,14 @@ do {
         if (-not $Yes -and (Read-Host 'Run it? [y/N]') -ne 'y') { Write-Host 'Skipped.' -ForegroundColor Yellow; continue }
     }
     $scriptPath = Join-Path $scriptsDir $item.name
+    # Splat a HASHTABLE through a variable. The original @($item.args) was an
+    # array expression that landed as one positional Object[], and an array
+    # splat of '-Diagnose' binds it as a positional string rather than the
+    # switch - both found by tests\preflight.ps1 pressing options 2 and 3
+    # (2026-09-01). Named splatting is the form that reaches a [switch].
+    $scriptArgs = $item.args
     try {
-        & $scriptPath @($item.args)
+        & $scriptPath @scriptArgs
     } catch {
         Write-Host "$($item.name) failed: $($_.Exception.Message)" -ForegroundColor Red
     }
