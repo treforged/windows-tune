@@ -35,6 +35,9 @@
      12. 04's Get-StoreFacts is lifted by the Parser and CALLED with synthetic
          DISM text: real output, nothing-to-reclaim, odd spacing, and unreadable
          output which must come back as unknown rather than as success.
+     13. LOCALE: 01's Get-TcpGlobal is CALLED with synthetic German netsh output
+         and must throw naming the cause; 02's Get-MinState is checked statically
+         for the same guard ahead of its ToInt32.
 #>
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -285,6 +288,51 @@ if (-not $factsFn) {
             Fail "Get-StoreFacts on $($c.n): got packages=$($got.Packages) recommended=$($got.Recommended), expected $($c.pk)/$($c.rec)"
         }
     }
+}
+
+# 13. LOCALE. Every parser here reads the ENGLISH labels of netsh/powercfg/DISM
+#     output, which Windows localizes. This is the class of bug a second machine
+#     would find, tested without one: 01's Get-TcpGlobal is lifted and CALLED
+#     with synthetic German netsh output, and 02's Get-MinState is checked
+#     STATICALLY for its guard (it shells out to powercfg, so calling it here
+#     would only re-test this English machine - said plainly rather than faked).
+$netPath13 = Join-Path (Join-Path $repo 'scripts') '01-network-tune.ps1'
+$errors = $null
+$netAst13 = [System.Management.Automation.Language.Parser]::ParseFile($netPath13, [ref]$null, [ref]$errors)
+$tcpFn = $netAst13.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-TcpGlobal' }, $true)
+if (-not $tcpFn) {
+    Fail '01-network-tune.ps1 has no Get-TcpGlobal - stage 13 checked nothing'
+} else {
+    . ([scriptblock]::Create($tcpFn.Extent.Text))
+    $g = @('Receive Window Auto-Tuning Level    : normal', 'Receive-Side Scaling State          : enabled')
+    try {
+        $v = Get-TcpGlobal 'Receive Window Auto-Tuning Level'
+        if ($v -eq 'normal') { Pass 'Get-TcpGlobal reads an English netsh label' }
+        else { Fail "Get-TcpGlobal on English netsh returned [$v], expected [normal]" }
+    } catch { Fail "Get-TcpGlobal threw on valid English input: $($_.Exception.Message)" }
+
+    $g = @('Empf. Fenster Auto-Tuningstufe      : normal', 'Skalierungsstatus empfangsseitig    : aktiviert')
+    try {
+        $v = Get-TcpGlobal 'Receive Window Auto-Tuning Level'
+        Fail "Get-TcpGlobal on LOCALIZED netsh returned [$v] instead of throwing - a revert file would be written with no value"
+    } catch {
+        if ($_.Exception.Message -match 'English-language Windows') { Pass 'Get-TcpGlobal on localized netsh throws and names the cause' }
+        else { Fail "Get-TcpGlobal threw on localized netsh but the message names no cause: $($_.Exception.Message)" }
+    }
+}
+
+$pwrPath13 = Join-Path (Join-Path $repo 'scripts') '02-power-tune.ps1'
+$errors = $null
+$pwrAst13 = [System.Management.Automation.Language.Parser]::ParseFile($pwrPath13, [ref]$null, [ref]$errors)
+$minFn = $pwrAst13.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-MinState' }, $true)
+if (-not $minFn) {
+    Fail '02-power-tune.ps1 has no Get-MinState - stage 13 checked nothing'
+} else {
+    $body = $minFn.Extent.Text
+    $throws = $body -match 'English-language Windows'
+    $guardFirst = ($body.IndexOf('throw') -ge 0) -and ($body.IndexOf('throw') -lt $body.IndexOf('ToInt32'))
+    if ($throws -and $guardFirst) { Pass 'Get-MinState guards a localized powercfg before ToInt32, naming the cause' }
+    else { Fail "Get-MinState has no locale guard ahead of ToInt32 (throws=$throws, guardFirst=$guardFirst) - a non-English Windows gets 'Index was out of range'" }
 }
 
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }

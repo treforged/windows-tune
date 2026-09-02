@@ -5,6 +5,48 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-09-02 - queue 1 dropped; the second-machine class tested WITHOUT one
+
+Tre: *"remove that from to do list. im not going back to that pc any time soon.
+just find a way to test on my pc if anything."* Queue 1 is closed as won't-do,
+not done. What replaced it found a real user-facing bug the same hour.
+
+**What a second machine would actually have caught, and now does not need to.**
+Every parser in this repo reads the ENGLISH labels of `netsh`, `powercfg` and
+`DISM` output - all of which Windows localizes. That is the largest
+machine-to-machine difference this code has, and it is testable synthetically:
+
+- `01`'s `Get-TcpGlobal` on German netsh text did not return empty, it THREW
+  `[System.Object[]] does not contain a method named 'Trim'`.
+- `02`'s `Get-MinState` fell through to `[Convert]::ToInt32('')` and threw
+  `Index was out of range`.
+
+Both aborted BEFORE changing anything, so they were fail-safe - but a stranger
+on a German or Spanish Windows got a .NET error naming nothing they could act
+on. Both now throw a message that says the scripts need an English-language
+Windows and that nothing was changed.
+
+- `tests/preflight.ps1` stage 13: `Get-TcpGlobal` is lifted and **CALLED** with
+  synthetic German netsh output and must throw naming the cause; `Get-MinState`
+  is checked **statically** for the same guard ahead of its `ToInt32`, because it
+  shells out to powercfg and calling it here would only re-test this English
+  machine. That limit is stated in the stage rather than papered over.
+- Gate: **55 ok, exit 0**, unelevated.
+- Proven red on purpose: weakening 01's message to not name the cause gives
+  `Get-TcpGlobal threw on localized netsh but the message names no cause`,
+  exit 1. And `Get-MinState` still returns 0% on this machine, so the English
+  path is intact.
+
+**How to test 'another machine' from this one, in order of fidelity:**
+1. **Windows Sandbox** - a disposable clean Windows, built into Win 11 Pro.
+   This box supports it (`HypervisorPresent=True`, virtualization on) but the
+   feature is NOT installed; enabling it needs elevation and a reboot. Highest
+   fidelity available without hardware: a stranger's default Windows.
+2. **Synthetic parser tests** (stages 10, 12, 13) - lift a pure function out
+   with the Parser and call it with the states another machine would produce.
+   Free, instant, and it is what found the locale bug.
+3. A non-admin account, and PowerShell 7 alongside 5.1.
+
 ## 2026-09-02 - 04 now checks the OUTCOME, not DISM's success line
 
 Asked for after option 5 ran, succeeded, and freed nothing. `04` printed the GB
@@ -397,10 +439,14 @@ by anything in this repo.
 
 ## Resume queue
 
-1. [ ] Run `tests\preflight.ps1` on a second machine (any Windows 10/11 box)
-   and note what differs - the whole repo has one data point. (A clean clone
-   on the reference machine is green, 2026-09-01; that is not a second
-   machine.)
+1. [-] Run `tests\preflight.ps1` on a second machine. **DROPPED 2026-09-02**
+   at Tre's call - he is not returning to that PC. He does report the
+   INSTALLER ran well there, which is the only evidence from another box.
+   Replaced by testing the second-machine CLASS from this one: stage 13 now
+   covers the locale fragility that was the largest real difference between
+   machines, and it found two genuine bugs. Windows Sandbox is the higher-
+   fidelity option if it is ever wanted - supported here, not installed,
+   needs elevation and a reboot.
 2. [x] Admin check in `06-remove-third-party-av.ps1` - already present at
    lines 57-59, same shape as 02. No change needed (2026-09-01).
 3. [x] `-Diagnose` in 05 works unelevated and the menu lists it as read-only
@@ -428,25 +474,32 @@ by anything in this repo.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-01 21:06 by handoff_hook. Everything below this heading is
+_Written 2026-09-02 11:34 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Working tree:** clean
+- **Uncommitted (4 file(s)):**
+
+```
+M handoff.md
+ M scripts/01-network-tune.ps1
+ M scripts/02-power-tune.ps1
+ M tests/preflight.ps1
+```
 
 - **Recent commits:**
 
 ```
+c0ca3d4 feat(04): compare DISM's own before/after verdict instead of trusting its success line
+74370b2 docs(handoff): option 5 pressed - queue 4 closed, and DISM contradicted its own success
+6cf7bbb fix(menu): option 5's warning described /ResetBase, which the menu cannot pass
 bd94ab6 docs(handoff): refresh the auto-snapshot block
 a62627a docs(handoff): carry the two unanswered offers forward before this duplicate tab closes
 86d6302 docs(handoff): correct it - Surfshark is uninstalled; 14 orphaned WSC keys remain
 2a670f9 docs(handoff): option 6 pressed elevated - refuses without -Name; only option 5 left
 e0f557b docs(handoff): the menu pressed ELEVATED - options 3 and 4 report "already at target"
-c367c9f feat(scripts): read the current value first - an already-tuned machine is told, not re-tuned
-f245e82 docs(handoff): the menu offers no-op changes on an already-tuned machine (queue 6)
-8ab8c9d docs(handoff): published head re-verified from a stranger's side; a false green caught in the checker
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
