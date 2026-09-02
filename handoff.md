@@ -5,6 +5,28 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-09-02 - option 5's warning described a flag the menu cannot pass
+
+The menu told users option 5 was `NOT reversible`. It is not, as written.
+
+- Row 5 passes `args = @{}`, so `-ResetBase` is never set, and DISM's
+  `/ResetBase` line in `04` is unreachable from ANY menu option. What the
+  button actually runs is plain `StartComponentCleanup` - the same cleanup
+  Windows schedules for itself, after which recent updates remain
+  uninstallable. `04` also asks DISM whether a cleanup is recommended and
+  skips when it is not.
+- So the old label overstated the consequence of the button by describing a
+  mode the button cannot reach. Corrected to say what it runs. Option 6's
+  `NOT reversible` is left alone - uninstalling a product really is.
+- Gate after the edit: **48 ok, exit 0**, unelevated.
+
+Lesson worth keeping: **a warning that overstates is still a wrong warning.**
+An exaggerated one teaches users to discount the accurate ones next to it, and
+here it sat one line above a genuinely irreversible option.
+
+Option 5 is STILL unpressed. Milder than advertised is not the same as
+harmless, and it remains Tre's call.
+
 ## 2026-09-01 - the menu run ELEVATED at last (queue 4, the safe options)
 
 Tre cleared the UAC prompt, so the half of queue 4 that no automated session
@@ -343,7 +365,7 @@ by anything in this repo.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-01 21:03 by handoff_hook. Everything below this heading is
+_Written 2026-09-01 21:06 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -354,6 +376,7 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+bd94ab6 docs(handoff): refresh the auto-snapshot block
 a62627a docs(handoff): carry the two unanswered offers forward before this duplicate tab closes
 86d6302 docs(handoff): correct it - Surfshark is uninstalled; 14 orphaned WSC keys remain
 2a670f9 docs(handoff): option 6 pressed elevated - refuses without -Name; only option 5 left
@@ -361,7 +384,6 @@ e0f557b docs(handoff): the menu pressed ELEVATED - options 3 and 4 report "alrea
 c367c9f feat(scripts): read the current value first - an already-tuned machine is told, not re-tuned
 f245e82 docs(handoff): the menu offers no-op changes on an already-tuned machine (queue 6)
 8ab8c9d docs(handoff): published head re-verified from a stranger's side; a false green caught in the checker
-8905097 docs(handoff): resume this desk on Opus, not Fable
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

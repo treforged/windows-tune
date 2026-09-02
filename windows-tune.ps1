@@ -85,7 +85,7 @@ $menu = [ordered]@{
     '4' = @{ name = '02-power-tune.ps1';           args = @{};                        label = 'Power tune';
              changes = 'Minimum processor state of the active power plan; writes 02-power-tune-revert.ps1' }
     '5' = @{ name = '04-component-cleanup.ps1';    args = @{};                        label = 'Component store cleanup';
-             changes = 'Removes superseded Windows update packages - NOT reversible' }
+             changes = 'Deletes superseded component versions - the same DISM StartComponentCleanup Windows schedules itself, WITHOUT /ResetBase, so recent updates stay uninstallable; asks DISM first and skips if no cleanup is recommended' }
     '6' = @{ name = '06-remove-third-party-av.ps1'; args = @{};                       label = 'Remove a third-party antivirus';
              changes = 'UNINSTALLS a product you name - NOT reversible; the script asks for the product name itself' }
     'R' = @{ name = '';                            args = @{};                        label = 'List revert files';                    changes = '' }
