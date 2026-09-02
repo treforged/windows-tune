@@ -49,7 +49,8 @@ $before = Get-MinState
 Write-Host "Minimum processor state BEFORE: $before%"
 
 if ($before -eq $Floor) {
-    Write-Host "Already at $Floor% - nothing to do." -ForegroundColor Green
+    Write-Host "already at target - nothing to change" -ForegroundColor Green
+    Write-Host "  minimum processor state is already $Floor%; no revert file written." -ForegroundColor DarkGray
     return
 }
 

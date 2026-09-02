@@ -143,11 +143,24 @@ a `*-revert.ps1` beside themselves first.
 .\scripts\06-remove-third-party-av.ps1 -Name Surfshark
 ```
 
+## Already tuned? The scripts say so
+
+Every script that changes something reads the current value first. If your
+machine is already where the script would put it, it prints
+`already at target - nothing to change` and stops - no revert file, no writes,
+and no adapter bounce. `01` also changes only the settings that actually differ,
+and bounces the NIC only if a NIC driver property really changed, so a run on a
+tuned machine costs nothing instead of five seconds offline.
+
+A menu option describes what it *can* change. What it *did* change is what the
+script prints when you run it.
+
 ## Reverting
 
 Every script writes `<name>-revert.ps1` capturing the values that were live
-before it ran. Run it elevated. Reverts are generated from your machine's actual
-state, not from assumed defaults.
+before it ran, and only when there is something to change. Run it elevated.
+Reverts are generated from your machine's actual state, not from assumed
+defaults.
 
 ## Scope and cautions
 
