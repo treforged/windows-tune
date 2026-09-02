@@ -5,6 +5,34 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-09-01 - the menu run ELEVATED at last (queue 4, the safe options)
+
+Tre cleared the UAC prompt, so the half of queue 4 that no automated session
+could reach is now measured rather than assumed. Options 2, 3, 4, R and 1 were
+pressed with `-Yes` against the real scripts from an ELEVATED prompt
+(`ELEVATED=True` recorded in the run log before anything ran):
+
+- **3 (network tune): `already at target - nothing to change`**, exit 0,
+  `11 NIC properties checked`, **adapter NOT bounced**. This is the whole point
+  of the change committed an hour earlier: before it, this option spent ~5 s
+  offline to change nothing.
+- **4 (power tune): `already at target - nothing to change`**, exit 0, active
+  plan read as `Khorvie's PowerPlan`, minimum processor state already 0%.
+- **2 (antivirus status)**: real reading - Tamper Protection ON, signatures
+  0 days old, `REAL-TIME PROTECTION: ON`.
+- **R**: `No revert files yet`. **1 (storage report)**: full report, 18 Steam
+  titles / 550.1 GB, exit 0.
+- **Every option exited 0, and revert files were 0 before and 0 after.** The
+  working tree was clean afterwards. Nothing on this machine was changed by a
+  run whose entire purpose was to change things - because there was nothing to
+  change, and now the tool says so.
+
+Still not pressed: **5 (component store cleanup)**, held back deliberately - it
+is the irreversible one and takes several uninterruptible minutes, so it wants
+an explicit yes rather than a session's judgement. **6** refuses immediately
+without `-Name` (the menu passes no arguments), so it is safe, but its own
+elevated press is still outstanding.
+
 ## 2026-09-01 - already at target means nothing is changed (queue 6 closed)
 
 The gap measured yesterday is closed: on a tuned machine the scripts now say
@@ -233,10 +261,14 @@ Known gaps, in order of what a user would hit:
    lines 57-59, same shape as 02. No change needed (2026-09-01).
 3. [x] `-Diagnose` in 05 works unelevated and the menu lists it as read-only
    (2026-09-01, see the top section - it also exposed the menu splat bug).
-4. [~] Run the menu end to end by hand once, ELEVATED. The unelevated half is
-   done (2026-09-01, see above): all six options pressed against the real
-   scripts, `n` skips 3-6 cleanly, 1/2/R/Q work, zero side effects. What is
-   left needs a human to clear the UAC prompt - no automated session can.
+4. [~] Run the menu end to end by hand once, ELEVATED. Unelevated: all six
+   options, done 2026-09-01. Elevated: options 1, 2, 3, 4 and R pressed with
+   `-Yes` the same day (see the top section) - all exit 0, 3 and 4 both report
+   `already at target`, 0 revert files before and after. **Only option 5 is
+   left**, held back on purpose because the component-store cleanup is
+   irreversible and takes minutes; it needs Tre's explicit yes, not a
+   session's judgement. Option 6's elevated press is outstanding but harmless
+   (it refuses without -Name).
 6. [x] Make each script read the current value BEFORE offering to change it,
    and say `already at target - nothing to change` instead of performing a
    no-op. Shipped 2026-09-01 - see the top section. 01 rewritten around a pure
