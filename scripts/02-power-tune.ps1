@@ -39,10 +39,19 @@ $active = ((powercfg /getactivescheme) -replace '.*GUID:\s*([a-f0-9\-]+).*', '$1
 $name   = ((powercfg /getactivescheme) -replace '.*\((.+)\).*', '$1').Trim()
 Write-Host "Active plan: $name" -ForegroundColor Cyan
 
+# powercfg output is LOCALIZED. Without this guard a non-English Windows fell
+# through to [Convert]::ToInt32('') and died with "Index was out of range", which
+# names nothing a user can act on. Proven by tests\preflight.ps1 stage 13.
 function Get-MinState {
-    $hex = ((powercfg /query $active $SUB_PROCESSOR $PROCTHROTTLEMIN) |
-            Select-String 'Current AC Power Setting Index') -replace '.*:\s*', ''
-    [Convert]::ToInt32($hex.Trim(), 16)
+    $line = @((powercfg /query $active $SUB_PROCESSOR $PROCTHROTTLEMIN) |
+              Select-String 'Current AC Power Setting Index' | Select-Object -First 1)
+    if (-not $line -or -not $line[0]) {
+        throw ("Could not read the current minimum processor state from powercfg. " +
+               "These scripts read the ENGLISH labels of Windows command output, so " +
+               "they need an English-language Windows. Nothing has been changed.")
+    }
+    $hex = ("$($line[0])" -replace '.*:\s*', '').Trim()
+    [Convert]::ToInt32($hex, 16)
 }
 
 $before = Get-MinState

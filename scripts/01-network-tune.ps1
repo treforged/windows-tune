@@ -164,7 +164,20 @@ Write-Host "Adapter: $($nic.Name) - $($nic.InterfaceDescription) @ $($nic.LinkSp
 
 # --------------------------------------------------------- read what is there
 $g = netsh int tcp show global
-function Get-TcpGlobal([string]$label) { (($g | Select-String $label) -replace '.*:\s*', '').Trim() }
+# netsh output is LOCALIZED. On a non-English Windows these labels do not match,
+# and the old one-liner then called .Trim() on an empty match and died with
+# "[System.Object[]] does not contain a method named 'Trim'" - a message that
+# tells the user nothing. Say what is actually wrong instead. Proven by
+# tests\preflight.ps1 stage 13 against synthetic German netsh output.
+function Get-TcpGlobal([string]$label) {
+    $line = @($g | Select-String $label | Select-Object -First 1)
+    if (-not $line -or -not $line[0]) {
+        throw ("Could not find '$label' in 'netsh int tcp show global'. These scripts " +
+               "read the ENGLISH labels of Windows command output, so they need an " +
+               "English-language Windows. Nothing has been changed.")
+    }
+    ("$($line[0])" -replace '.*:\s*', '').Trim()
+}
 
 $pm = Get-NetAdapterPowerManagement -Name $AdapterName -ErrorAction SilentlyContinue
 $advanced = @{}
