@@ -67,7 +67,7 @@ reclaimed 0.03 GB and left the same 2 packages reclaimable.
 
 **The stage caught a bug in itself before it caught anything else, which is the
 point of the rule.** Written through a bash heredoc, Python read the path
-`scripts-...` as an OCTAL ESCAPE and wrote a literal 0x04 control character
+`scripts\04-...` as an OCTAL ESCAPE and wrote a literal 0x04 control character
 into the filename, so `ParseFile` silently found nothing. Because the stage
 fails when it finds no function rather than passing an empty check, it went red
 immediately instead of printing green over a test that examined nothing. Build
@@ -438,6 +438,26 @@ the uninstalled Windows app and is removed from Chrome's extensions page, not
 by anything in this repo.
 
 ## Resume queue
+
+**For the Desktop folder migration (checked 2026-09-02, so it is not
+rediscovered): this desk is SAFE TO MOVE, but NOT safe to RENAME.**
+
+- The repo hard-codes NO absolute paths. Every path is derived at runtime from
+  `$PSScriptRoot` / `Split-Path -Parent` - in the scripts, the menu, the
+  installer and `tests/preflight.ps1`. Verified by grepping all `.ps1`, `.cmd`
+  and `.json` for `C:\Users` - zero hits outside this handoff file.
+- **No scheduled task references windows-tune** (`schtasks /query /fo csv /v`
+  filtered: 0 hits). Nothing to repoint there.
+- Only three files outside the repo mention it, and all three are PROSE, not
+  paths: a `--reason` example in `~/.claude/bin/automode_window.py:8`, a comment
+  in `dispatch.py:140`, and `FREE-LLM-EXECUTORS.md`. None break on a move.
+- **The one real hazard is a RENAME.** `claudecontext/execs.json` keys this desk
+  by the folder NAME (`"windows-tune": {"name": "Gus", ...}`) with no path in
+  it, and the SessionStart hook resolves the desk by the deepest folder segment
+  of the cwd. Move the folder anywhere and Gus still resolves; rename it and the
+  desk silently falls through to Sam. If the folder name changes, change the
+  `execs.json` key and the `Desktop/CLAUDE.md` roster row in the same commit.
+
 
 1. [-] Run `tests\preflight.ps1` on a second machine. **DROPPED 2026-09-02**
    at Tre's call - he is not returning to that PC. He does report the
