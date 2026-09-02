@@ -284,6 +284,32 @@ Known gaps, in order of what a user would hit:
 - `tests/preflight.ps1` cannot test elevation (UAC). The live download is
   not in the gate either, but it was walked by hand on 2026-09-01 (above).
 
+## Open with Tre as of 2026-09-01 20:40 (two offers, neither answered)
+
+Both were put to him in chat and neither has a yes or a no yet. They are
+recorded here because the session that offered them is being closed as a
+duplicate, and an unanswered offer that lives only in a terminal is lost.
+
+1. **Menu option 5, the component-store cleanup.** The only menu option never
+   pressed. Deliberately NOT run: it deletes the superseded component versions
+   that are the rollback data for updates already installed, so afterwards those
+   updates can no longer be uninstalled. Nothing in use is removed and Windows
+   runs the same cleanup itself on a schedule, but it is a one-way door and
+   wants his explicit yes, not a session's judgement to close a queue. `04` now
+   asks DISM whether a cleanup is even recommended first, so on this box it may
+   simply report nothing to reclaim.
+2. **The 14 orphaned Surfshark WSC keys** (see the correction above). Offered:
+   export them to a `.reg` first so it is reversible, then delete. Two caveats
+   given with the offer - it is registry surgery on Security Center, outside
+   what any script in this repo does, and the keys may be ACL'd to
+   TrustedInstaller, in which case the answer is to say so rather than start
+   taking ownership of system keys. A reboot sometimes clears them for free.
+
+Also told him, and worth repeating to whoever picks this up: what he still sees
+"running in chrome" is the Surfshark browser EXTENSION. It is independent of
+the uninstalled Windows app and is removed from Chrome's extensions page, not
+by anything in this repo.
+
 ## Resume queue
 
 1. [ ] Run `tests\preflight.ps1` on a second machine (any Windows 10/11 box)
