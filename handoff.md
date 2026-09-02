@@ -27,11 +27,27 @@ pressed with `-Yes` against the real scripts from an ELEVATED prompt
   run whose entire purpose was to change things - because there was nothing to
   change, and now the tool says so.
 
+**6 was then pressed elevated too** and refused exactly as designed:
+`06-remove-third-party-av.ps1 failed: Pass -Name or -ProductCode.` The menu
+passes no arguments, so the script lists the registered AV products and stops
+before touching anything - exit 0, still 0 revert files, nothing uninstalled.
+
 Still not pressed: **5 (component store cleanup)**, held back deliberately - it
 is the irreversible one and takes several uninterruptible minutes, so it wants
-an explicit yes rather than a session's judgement. **6** refuses immediately
-without `-Name` (the menu passes no arguments), so it is safe, but its own
-elevated press is still outstanding.
+an explicit yes rather than a session's judgement.
+
+One wrinkle it exposed, the same class as queue 6's follow-up: the menu printed
+`This will change: UNINSTALLS a product you name` and then nothing was
+uninstalled, because the script refuses without a name. The refusal message is
+clear, so a user is not misled for long - but it is another case of the MENU
+promising what only the SCRIPT can actually determine. That is the `-Preview`
+follow-up already noted below.
+
+Machine note, not acted on: option 2 shows **Surfshark still registered in
+Security Center** beside Windows Defender. Defender is running with real-time
+protection ON, so this is NOT the "no AV at all" state the README warns about -
+but it is precisely the registration `06` exists to clear. Left alone: an
+uninstall is a product decision, not a session's.
 
 ## 2026-09-01 - already at target means nothing is changed (queue 6 closed)
 
@@ -267,8 +283,8 @@ Known gaps, in order of what a user would hit:
    `already at target`, 0 revert files before and after. **Only option 5 is
    left**, held back on purpose because the component-store cleanup is
    irreversible and takes minutes; it needs Tre's explicit yes, not a
-   session's judgement. Option 6's elevated press is outstanding but harmless
-   (it refuses without -Name).
+   session's judgement. Option 6 was pressed elevated and refused correctly
+   (`Pass -Name or -ProductCode.`), so 1, 2, 3, 4, 6 and R are all done.
 6. [x] Make each script read the current value BEFORE offering to change it,
    and say `already at target - nothing to change` instead of performing a
    no-op. Shipped 2026-09-01 - see the top section. 01 rewritten around a pure
