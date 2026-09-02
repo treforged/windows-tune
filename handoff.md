@@ -43,11 +43,28 @@ clear, so a user is not misled for long - but it is another case of the MENU
 promising what only the SCRIPT can actually determine. That is the `-Preview`
 follow-up already noted below.
 
-Machine note, not acted on: option 2 shows **Surfshark still registered in
-Security Center** beside Windows Defender. Defender is running with real-time
-protection ON, so this is NOT the "no AV at all" state the README warns about -
-but it is precisely the registration `06` exists to clear. Left alone: an
-uninstall is a product decision, not a session's.
+Machine note, CORRECTED the same day. Option 2 shows a Surfshark registration
+in Security Center beside Windows Defender, and this desk first read that as
+"Surfshark is still installed". It is not. Checked directly:
+`C:\Program Files\Surfshark` **does not exist**, there is no uninstall entry in
+any of the three Uninstall hives, no service, and no process. What survives is
+**14 orphaned Security Center provider keys** under
+`HKLM:\SOFTWARE\Microsoft\Security Center\Provider\Av`, every one pointing at a
+`wsc_agent.exe` that is gone. Defender reads `AMRunningMode Normal`,
+`RealTimeProtectionEnabled True`.
+
+The correction matters for the tool: **`06` cannot help here.** It clears a
+registration by uninstalling the product that owns it, and there is no product
+left to uninstall - it would correctly print `No installed product matching
+'Surfshark'` and stop. Dead WSC registrations are a different problem than the
+one this repo solves, and the repo should not pretend otherwise. Deleting those
+keys is registry surgery on Security Center, outside the scope 01's header
+claims ("touches no firewall, antivirus, service or policy setting"), so it is
+not being folded into a script on a hunch.
+
+Worth keeping as a lesson: **a Security Center registration is not evidence the
+product is installed.** The README already says a stale entry "may linger until
+reboot"; this machine shows they can linger indefinitely, and in bulk.
 
 ## 2026-09-01 - already at target means nothing is changed (queue 6 closed)
 
