@@ -343,7 +343,7 @@ by anything in this repo.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-01 19:16 by handoff_hook. Everything below this heading is
+_Written 2026-09-01 21:03 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -354,14 +354,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+a62627a docs(handoff): carry the two unanswered offers forward before this duplicate tab closes
+86d6302 docs(handoff): correct it - Surfshark is uninstalled; 14 orphaned WSC keys remain
+2a670f9 docs(handoff): option 6 pressed elevated - refuses without -Name; only option 5 left
+e0f557b docs(handoff): the menu pressed ELEVATED - options 3 and 4 report "already at target"
+c367c9f feat(scripts): read the current value first - an already-tuned machine is told, not re-tuned
 f245e82 docs(handoff): the menu offers no-op changes on an already-tuned machine (queue 6)
 8ab8c9d docs(handoff): published head re-verified from a stranger's side; a false green caught in the checker
 8905097 docs(handoff): resume this desk on Opus, not Fable
-511cf5d docs(handoff): every menu option pressed unelevated - the skip path is proven
-ec2b9da test(preflight): stage 9 - every menu args key is a declared parameter of its script
-1287214 docs(handoff): queue 5 - static check that menu switch names exist in their target scripts
-147ccdd docs(handoff): menu options 2 and 3 never ran (d82ca5d); 05 -Diagnose unelevated; queue 3 closed, 4 added
-d82ca5d fix(menu): splat script arguments by name - options 2 and 3 never reached their scripts
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
