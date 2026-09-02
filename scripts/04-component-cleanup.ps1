@@ -39,6 +39,20 @@ function Get-FreeGB { [math]::Round((Get-Volume -DriveLetter C).SizeRemaining / 
 $before = Get-FreeGB
 Write-Host "C: free BEFORE: $before GB" -ForegroundColor Cyan
 
+# Read DISM's own verdict out of its text so the OUTCOME can be checked, not just
+# the action. Returns $null for a field it cannot find - an unparseable answer is
+# reported as unknown, never silently treated as success.
+function Get-StoreFacts {
+    param([object[]]$DismOutput)
+    $text = $DismOutput -join "`n"
+    $pk  = [regex]::Match($text, 'Number of Reclaimable Packages\s*:\s*(\d+)')
+    $rec = [regex]::Match($text, 'Component Store Cleanup Recommended\s*:\s*(\w+)')
+    [pscustomobject]@{
+        Packages    = if ($pk.Success)  { [int]$pk.Groups[1].Value } else { $null }
+        Recommended = if ($rec.Success) { $rec.Groups[1].Value }    else { $null }
+    }
+}
+
 Write-Host "`n--- ANALYZE ---" -ForegroundColor Yellow
 $analysis = & Dism.exe /Online /Cleanup-Image /AnalyzeComponentStore 2>&1
 $analysis | Write-Host
@@ -63,7 +77,27 @@ if ($ResetBase) {
 }
 
 Write-Host "`n--- RE-ANALYZE ---" -ForegroundColor Yellow
-Dism.exe /Online /Cleanup-Image /AnalyzeComponentStore
+$reanalysis = & Dism.exe /Online /Cleanup-Image /AnalyzeComponentStore 2>&1
+$reanalysis | Write-Host
 
-$after = Get-FreeGB
-Write-Host "`nC: free AFTER: $after GB  (reclaimed $([math]::Round($after - $before, 2)) GB)" -ForegroundColor Green
+$after     = Get-FreeGB
+$reclaimed = [math]::Round($after - $before, 2)
+Write-Host "`nC: free AFTER: $after GB  (reclaimed $reclaimed GB)" -ForegroundColor Green
+
+# DISM says 'The operation completed successfully' even when it removed nothing.
+# Compare its OWN before and after verdict rather than letting that stand as the
+# last word (seen 2026-09-02: 2 reclaimable packages before AND after, 0.03 GB).
+$pre  = Get-StoreFacts $analysis
+$post = Get-StoreFacts $reanalysis
+if ($null -eq $pre.Packages -or $null -eq $post.Packages) {
+    Write-Host "`nCould not read DISM's reclaimable-package count, so whether this" -ForegroundColor Yellow
+    Write-Host '  freed anything is UNKNOWN - do not read the success line as proof.' -ForegroundColor Yellow
+} elseif ($post.Packages -ge $pre.Packages -and $reclaimed -le 0.05) {
+    Write-Host "`nnothing was actually freed" -ForegroundColor Yellow
+    Write-Host "  DISM still reports $($post.Packages) reclaimable package(s) and" -ForegroundColor Yellow
+    Write-Host "  'Cleanup Recommended : $($post.Recommended)' - the same as before the run." -ForegroundColor Yellow
+    Write-Host '  Those packages usually need a RESTART before they can be removed.' -ForegroundColor Yellow
+    Write-Host '  DISM reported success; that describes the operation, not the outcome.' -ForegroundColor Yellow
+} else {
+    Write-Host "`nreclaimable packages: $($pre.Packages) -> $($post.Packages)" -ForegroundColor Green
+}

@@ -32,6 +32,9 @@
          as at-target rather than throwing.
      11. Every script that changes something says "already at target - nothing
          to change" somewhere (01, 02, 04), so no option performs a silent no-op.
+     12. 04's Get-StoreFacts is lifted by the Parser and CALLED with synthetic
+         DISM text: real output, nothing-to-reclaim, odd spacing, and unreadable
+         output which must come back as unknown rather than as success.
 #>
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -254,6 +257,35 @@ foreach ($n in '01-network-tune.ps1', '02-power-tune.ps1', '04-component-cleanup
     else { Fail "$n can perform a silent no-op - no 'already at target' message" }
 }
 if ($idempotent -eq 0) { Fail 'stage 11 checked no scripts' }
+
+# 12. 04's Get-StoreFacts, actually CALLED. 04 throws on the admin test, so the
+#     Parser lifts the pure function out and this stage invokes it with synthetic
+#     DISM text - no DISM run, nothing on this machine touched. The point is the
+#     UNKNOWN case: unparseable output must come back $null so the script can say
+#     'unknown' rather than treat a failed read as success.
+$cleanPath = Join-Path (Join-Path $repo 'scripts') '04-component-cleanup.ps1'
+$errors = $null
+$cleanAst = [System.Management.Automation.Language.Parser]::ParseFile($cleanPath, [ref]$null, [ref]$errors)
+$factsFn = $cleanAst.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-StoreFacts' }, $true)
+if (-not $factsFn) {
+    Fail '04-component-cleanup.ps1 has no Get-StoreFacts - stage 12 checked nothing'
+} else {
+    . ([scriptblock]::Create($factsFn.Extent.Text))
+    $cases = @(
+        @{ n = 'real DISM output';   in = @('Actual Size of Component Store : 14.88 GB', 'Number of Reclaimable Packages : 2', 'Component Store Cleanup Recommended : Yes', 'The operation completed successfully.'); pk = 2;     rec = 'Yes' }
+        @{ n = 'nothing to reclaim'; in = @('Number of Reclaimable Packages : 0', 'Component Store Cleanup Recommended : No');  pk = 0;     rec = 'No' }
+        @{ n = 'wide spacing';       in = @('Number of Reclaimable Packages :    17', 'Component Store Cleanup Recommended :   Yes'); pk = 17; rec = 'Yes' }
+        @{ n = 'unreadable output';  in = @('Error: 87', 'The operation failed.');     pk = $null; rec = $null }
+    )
+    foreach ($c in $cases) {
+        $got = Get-StoreFacts $c.in
+        if ($got.Packages -eq $c.pk -and $got.Recommended -eq $c.rec) {
+            Pass "Get-StoreFacts reads $($c.n) as packages=$(if ($null -eq $c.pk) { 'unknown' } else { $c.pk })"
+        } else {
+            Fail "Get-StoreFacts on $($c.n): got packages=$($got.Packages) recommended=$($got.Recommended), expected $($c.pk)/$($c.rec)"
+        }
+    }
+}
 
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green
