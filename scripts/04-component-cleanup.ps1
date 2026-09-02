@@ -15,6 +15,9 @@
 .PARAMETER ResetBase
     Also pass /ResetBase. Understand the tradeoff above before using it.
 
+.PARAMETER Force
+    Run the cleanup even when DISM reports there is nothing to reclaim.
+
 .EXAMPLE
     .\04-component-cleanup.ps1
 
@@ -23,7 +26,7 @@
     Takes several minutes and cannot be safely interrupted mid-run.
 #>
 [CmdletBinding()]
-param([switch]$ResetBase)
+param([switch]$ResetBase, [switch]$Force)
 
 $ErrorActionPreference = 'Continue'
 
@@ -37,7 +40,19 @@ $before = Get-FreeGB
 Write-Host "C: free BEFORE: $before GB" -ForegroundColor Cyan
 
 Write-Host "`n--- ANALYZE ---" -ForegroundColor Yellow
-Dism.exe /Online /Cleanup-Image /AnalyzeComponentStore
+$analysis = & Dism.exe /Online /Cleanup-Image /AnalyzeComponentStore 2>&1
+$analysis | Write-Host
+
+# DISM already knows whether there is anything to reclaim. Ask it before
+# spending several uninterruptible minutes reclaiming nothing. An unparseable
+# answer is not a "No": if the line is missing, the cleanup still runs.
+$recommendation = ($analysis | Select-String 'Component Store Cleanup Recommended' | Select-Object -First 1)
+if ($recommendation -and ("$recommendation" -match ':\s*No\s*$') -and -not $Force) {
+    Write-Host "`nalready at target - nothing to change" -ForegroundColor Green
+    Write-Host '  DISM reports no cleanup recommended; no packages were removed.' -ForegroundColor DarkGray
+    Write-Host '  Run with -Force to clean up anyway.' -ForegroundColor DarkGray
+    return
+}
 
 Write-Host "`n--- CLEANUP$(if ($ResetBase) { ' (/ResetBase)' }) ---" -ForegroundColor Yellow
 if ($ResetBase) {

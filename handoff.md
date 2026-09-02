@@ -5,6 +5,52 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-09-01 - already at target means nothing is changed (queue 6 closed)
+
+The gap measured yesterday is closed: on a tuned machine the scripts now say
+`already at target - nothing to change` and stop, instead of performing a no-op
+and, for option 3, a pointless ~5 s NIC bounce.
+
+- **01** now reads every targeted value first through a PURE
+  `Get-PendingNetworkChanges` (compares a snapshot to the targets, touches
+  nothing). Zero differences -> message, exit 0, **no revert file, no writes, no
+  bounce**. Otherwise it prints a `WILL CHANGE` table and applies **only** the
+  settings that differ; the adapter is bounced only if a Tier B NIC property
+  actually changed. A property the NIC lacks is not a change; an unreadable
+  value IS one - "could not read it" never becomes "already correct".
+- **04** reads DISM's own `Component Store Cleanup Recommended` line before
+  spending several uninterruptible minutes reclaiming nothing. `-Force`
+  overrides. A missing or unparseable line still runs the cleanup.
+- **02** already had this; only the wording was normalised. **03** and **05**
+  (the menu's read-only options) have nothing to change. **06** already reports
+  `No installed product matching` and msiexec 1605 `Product was already absent`.
+  No change made to either - said here rather than silently skipped.
+- **Gate: 48 ok, exit 0, unelevated.** Stage 10 lifts the pure function out of
+  01 with the Parser and CALLS it with synthetic states (the script throws on
+  its admin check at line 1, so it cannot be dot-sourced); stage 11 asserts each
+  changing script carries the message, and fails at a count of zero.
+- **Proven it can fail, three ways:** renaming the function ->
+  `stage 10 checked nothing`; dropping the Int32 masking -> the already-tuned
+  case goes red; removing 02's message -> stage 11 goes red. All exit 1.
+- **Pressed on real hardware.** A read-only copy of 01 (admin gate bypassed,
+  hard `exit` before the first write) run against this machine: `already at
+  target - nothing to change`, `11 NIC properties checked`, exit 0, revert files
+  0 before and 0 after. The elevated write path is still queue 4's remainder.
+
+Two PowerShell traps worth keeping. **`return ,$array` is not the way to return
+a list here** - it hands the caller ONE object that happens to be an array, so
+`@(...)` around the call is a 1-element array forever and `.Count -eq 0` can
+never be true. The gate caught it; 01 would otherwise have never once said
+"nothing to change". And **a DWORD of `0xFFFFFFFF` comes back from
+`Get-ItemProperty` as Int32 `-1`**; casting that to `[uint32]` THROWS, on
+precisely the already-tuned machine the feature exists for. Mask with
+`[int64]$v -band 0xFFFFFFFFL` first.
+
+Follow-up, not built: the MENU still prints its static `changes:` line and asks
+y/N before the script gets to say "nothing to change". A `-Preview` switch the
+menu could call first would close that, but it needs an exit-code protocol, a
+stage 9 extension, and elevation to read anything - larger than the ask.
+
 ## 2026-09-01 - the menu offers no-op changes on an already-tuned machine
 
 Measured on the reference box, every value the scripts target was ALREADY at
@@ -191,12 +237,12 @@ Known gaps, in order of what a user would hit:
    done (2026-09-01, see above): all six options pressed against the real
    scripts, `n` skips 3-6 cleanly, 1/2/R/Q work, zero side effects. What is
    left needs a human to clear the UAC prompt - no automated session can.
-6. [ ] Make each script read the current value BEFORE offering to change it,
+6. [x] Make each script read the current value BEFORE offering to change it,
    and say `already at target - nothing to change` instead of performing a
-   no-op (and, for 3, a pointless ~5s NIC bounce). Measured 2026-09-01: on an
-   already-tuned box every targeted value was already correct, and the menu
-   still offered the change as if it would do something. Touches all six
-   scripts; new scope, not yet asked for.
+   no-op. Shipped 2026-09-01 - see the top section. 01 rewritten around a pure
+   `Get-PendingNetworkChanges`, 04 asks DISM first, 02 already did it, 03 and 05
+   are read-only, 06 already reports "No installed product matching". Gate
+   stages 10 and 11, 48 ok exit 0, proven red three ways.
 5. [x] Gate stage: every key in a menu row's `args` hashtable is asserted to
    be a declared parameter of that row's script, by the Parser, nothing run.
    Shipped 2026-09-01 as preflight stage 9 - 36 ok exit 0 unelevated, and
@@ -206,7 +252,7 @@ Known gaps, in order of what a user would hit:
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-01 06:54 by handoff_hook. Everything below this heading is
+_Written 2026-09-01 19:16 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -217,14 +263,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+f245e82 docs(handoff): the menu offers no-op changes on an already-tuned machine (queue 6)
+8ab8c9d docs(handoff): published head re-verified from a stranger's side; a false green caught in the checker
+8905097 docs(handoff): resume this desk on Opus, not Fable
+511cf5d docs(handoff): every menu option pressed unelevated - the skip path is proven
+ec2b9da test(preflight): stage 9 - every menu args key is a declared parameter of its script
 1287214 docs(handoff): queue 5 - static check that menu switch names exist in their target scripts
 147ccdd docs(handoff): menu options 2 and 3 never ran (d82ca5d); 05 -Diagnose unelevated; queue 3 closed, 4 added
 d82ca5d fix(menu): splat script arguments by name - options 2 and 3 never reached their scripts
-a89170a docs(handoff): record the pipe-to-iex allowlist fix (741e5b8) and its failing-gate proof
-741e5b8 test(preflight): pipe-to-iex gate back to an explicit allowlist, not a blanket .md exemption
-deff4b2 docs(handoff): gate verified on a clean clone of origin/main; 06 admin-check gap was stale
-d91c0c6 test(preflight): the pipe-to-iex grep skips Markdown - docs are allowed to name the pattern they warn about
-dcb722e docs(security): SECURITY.md - how to report, what counts, what the repo does to protect itself
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

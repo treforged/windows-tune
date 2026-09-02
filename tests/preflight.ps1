@@ -25,6 +25,13 @@
          or stage 8 proves nothing - it says which it was.
       9. Static: every key in a menu row's args hashtable is a declared
          parameter of that row's script (Parser on both files, nothing run).
+     10. 01-network-tune.ps1's Get-PendingNetworkChanges is lifted out by the
+         Parser and CALLED with synthetic states: an already-tuned machine must
+         return nothing, each off-target value must be named, an unsupported
+         setting must not count, and 0xFFFFFFFF read back as Int32 -1 must read
+         as at-target rather than throwing.
+     11. Every script that changes something says "already at target - nothing
+         to change" somewhere (01, 02, 04), so no option performs a silent no-op.
 #>
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -169,6 +176,84 @@ foreach ($pair in $rows) {
     }
 }
 if ($named -eq 0) { Fail 'menu table not found in windows-tune.ps1 - stage 9 checked nothing' }
+
+# 10. the idempotency check in 01, actually CALLED. The script throws on the admin
+#     test at line 1, so it cannot be dot-sourced from a normal prompt; the Parser
+#     lifts just the pure function out and this stage invokes it. Synthetic states
+#     only - nothing on this machine is read or written.
+$netPath = Join-Path $repo 'scripts\01-network-tune.ps1'
+$errors = $null
+$netAst = [System.Management.Automation.Language.Parser]::ParseFile($netPath, [ref]$null, [ref]$errors)
+$fnAst = $netAst.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-PendingNetworkChanges' }, $true) | Select-Object -First 1
+if (-not $fnAst) {
+    Fail 'Get-PendingNetworkChanges not found in 01-network-tune.ps1 - stage 10 checked nothing'
+} else {
+    . ([scriptblock]::Create($fnAst.Extent.Text))
+    $stagedProbe = @(
+        @{ Name = 'Green Ethernet'; Value = 'Disabled' }
+        @{ Name = 'Flow Control';   Value = 'Disabled' }
+        @{ Name = 'Gigabit Lite';   Value = 'Disabled' }   # deliberately absent from the snapshots below
+    )
+    function New-TunedState {
+        @{
+            AutoTuning      = 'normal'
+            Rss             = 'enabled'
+            Rsc             = 'enabled'
+            ThrottlingIndex = -1          # what Get-ItemProperty returns for a 0xFFFFFFFF DWORD
+            NicPowerDown    = 'Disabled'
+            Advanced        = @{ 'Green Ethernet' = 'Disabled'; 'Flow Control' = 'Disabled' }
+        }
+    }
+
+    $r = @(Get-PendingNetworkChanges -Current (New-TunedState) -Staged $stagedProbe)
+    if ($r.Count -eq 0) { Pass 'already-tuned machine -> 0 pending changes (Int32 -1 reads as 0xFFFFFFFF, not a throw)' }
+    else { Fail "already-tuned machine reported $($r.Count) pending: $(($r | ForEach-Object { $_.Item }) -join ', ')" }
+
+    # An unsupported property is absent from the snapshot and must not be invented.
+    if (($r | Where-Object { $_.Item -eq 'Gigabit Lite' }).Count -eq 0) { Pass 'a NIC property the adapter lacks is not counted as a change' }
+    else { Fail 'an unsupported NIC property was reported as a pending change' }
+
+    # Each off-target value must be named, one at a time, so a stage that finds
+    # nothing cannot pass green by accident.
+    $cases = @(
+        @{ Key = 'AutoTuning';      Bad = 'disabled';  Item = 'TCP autotuning' }
+        @{ Key = 'Rss';             Bad = 'disabled';  Item = 'RSS' }
+        @{ Key = 'Rsc';             Bad = 'disabled';  Item = 'RSC' }
+        @{ Key = 'ThrottlingIndex'; Bad = 10;          Item = 'NetworkThrottlingIndex' }
+        @{ Key = 'NicPowerDown';    Bad = 'Enabled';   Item = 'NIC power-down' }
+    )
+    foreach ($c in $cases) {
+        $state = New-TunedState
+        $state[$c.Key] = $c.Bad
+        $r = @(Get-PendingNetworkChanges -Current $state -Staged $stagedProbe)
+        if ($r.Count -eq 1 -and $r[0].Item -eq $c.Item) { Pass "$($c.Item) off target -> reported, and nothing else is" }
+        else { Fail "$($c.Item) off target gave $($r.Count) result(s): $(($r | ForEach-Object { $_.Item }) -join ', ')" }
+    }
+
+    $state = New-TunedState
+    $state.Advanced['Flow Control'] = 'Rx & Tx Enabled'
+    $r = @(Get-PendingNetworkChanges -Current $state -Staged $stagedProbe)
+    if ($r.Count -eq 1 -and $r[0].Item -eq 'Flow Control') { Pass 'an off-target NIC property is reported' }
+    else { Fail "off-target NIC property gave $($r.Count) result(s)" }
+
+    # A missing reading is a difference, never a match.
+    $state = New-TunedState
+    $state.AutoTuning = $null
+    $state.ThrottlingIndex = $null
+    $r = @(Get-PendingNetworkChanges -Current $state -Staged $stagedProbe)
+    if ($r.Count -eq 2) { Pass 'unreadable values count as differences, not as "already correct"' }
+    else { Fail "unreadable values gave $($r.Count) result(s), expected 2" }
+}
+
+# 11. every script that changes something reports the no-op case. A user who picks
+#     an option must be able to tell "applied" from "was already correct".
+$idempotent = 0
+foreach ($n in '01-network-tune.ps1', '02-power-tune.ps1', '04-component-cleanup.ps1') {
+    $body = Get-Content -Raw (Join-Path $repo "scripts\$n")
+    if ($body -match 'already at target - nothing to change') { $idempotent++; Pass "$n reports the already-at-target case" }
+    else { Fail "$n can perform a silent no-op - no 'already at target' message" }
+}
+if ($idempotent -eq 0) { Fail 'stage 11 checked no scripts' }
 
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green
