@@ -5,6 +5,37 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-09-02 - option 5 pressed: queue 4 is CLOSED, and DISM contradicted itself
+
+The last unpressed option ran elevated in a time-boxed window. **All six menu
+options have now been pressed against the real scripts from an elevated
+prompt.** Queue 4 is done.
+
+What option 5 actually did, which is not what "success" suggests:
+
+- DISM BEFORE: component store 14.88 GB, 7.75 GB shared with Windows,
+  **2 reclaimable packages, `Component Store Cleanup Recommended : Yes`**.
+- `StartComponentCleanup` ran for ~115 s and reported
+  `The operation completed successfully.`
+- DISM AFTER: component store **still 14.88 GB**, **still 2 reclaimable
+  packages**, **still `Cleanup Recommended : Yes`**. C: free went
+  141.12 -> 141.15 GB, i.e. 0.03 GB, which is noise on a 141 GB volume.
+- Exit 0, 0 revert files before and after, tree clean.
+
+So the operation succeeded and changed nothing. The likely cause is that those
+two packages cannot be removed without a restart, or at all without
+`/ResetBase` - which the menu deliberately cannot pass. Not investigated
+further; a reboot then a re-run would settle it.
+
+**Follow-up worth doing (not done):** `04` prints the GB reclaimed honestly,
+but it does not notice that DISM's own post-analysis is IDENTICAL to the
+pre-analysis. It should compare the two and say "DISM still reports 2
+reclaimable packages - the cleanup freed nothing; a restart may be required"
+rather than leaving `The operation completed successfully.` as the last word.
+This is the same family as the no-op gap already fixed for 01/02/04: a script
+that reports the ACTION rather than the OUTCOME. Here the outcome check exists
+(the GB delta) but is not compared against DISM's own verdict.
+
 ## 2026-09-02 - option 5's warning described a flag the menu cannot pass
 
 The menu told users option 5 was `NOT reversible`. It is not, as written.
@@ -342,14 +373,14 @@ by anything in this repo.
    lines 57-59, same shape as 02. No change needed (2026-09-01).
 3. [x] `-Diagnose` in 05 works unelevated and the menu lists it as read-only
    (2026-09-01, see the top section - it also exposed the menu splat bug).
-4. [~] Run the menu end to end by hand once, ELEVATED. Unelevated: all six
-   options, done 2026-09-01. Elevated: options 1, 2, 3, 4 and R pressed with
-   `-Yes` the same day (see the top section) - all exit 0, 3 and 4 both report
-   `already at target`, 0 revert files before and after. **Only option 5 is
-   left**, held back on purpose because the component-store cleanup is
-   irreversible and takes minutes; it needs Tre's explicit yes, not a
-   session's judgement. Option 6 was pressed elevated and refused correctly
-   (`Pass -Name or -ProductCode.`), so 1, 2, 3, 4, 6 and R are all done.
+4. [x] Run the menu end to end by hand once, ELEVATED. **CLOSED 2026-09-02 -
+   all six options plus R have now been pressed elevated against the real
+   scripts.** Unelevated pass: 2026-09-01. Elevated: 1, 2, 3, 4, 6 and R on
+   2026-09-01 (3 and 4 both `already at target`, 6 refused correctly with
+   `Pass -Name or -ProductCode.`); option 5 on 2026-09-02 with Tre's explicit
+   yes, in a time-boxed auto-mode window - exit 0, 0 revert files before and
+   after, and it reclaimed nothing (see the top section: DISM still reports
+   the same 2 packages afterwards).
 6. [x] Make each script read the current value BEFORE offering to change it,
    and say `already at target - nothing to change` instead of performing a
    no-op. Shipped 2026-09-01 - see the top section. 01 rewritten around a pure
