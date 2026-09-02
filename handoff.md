@@ -5,6 +5,38 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-09-02 - 04 now checks the OUTCOME, not DISM's success line
+
+Asked for after option 5 ran, succeeded, and freed nothing. `04` printed the GB
+delta honestly but never compared DISM's post-analysis with its pre-analysis,
+so `The operation completed successfully.` stood as the last word on a run that
+reclaimed 0.03 GB and left the same 2 packages reclaimable.
+
+- New `Get-StoreFacts` parses DISM's own verdict - reclaimable-package count and
+  the Cleanup Recommended value - out of the text. After the cleanup, `04`
+  compares before against after and says one of three things: the packages went
+  down, **nothing was actually freed** (naming the unchanged count and pointing
+  at a RESTART), or the output could not be read at all so the result is
+  **UNKNOWN**. An unparseable read is never reported as success.
+- `tests/preflight.ps1` stage 12 lifts `Get-StoreFacts` out with the Parser and
+  CALLS it on four synthetic DISM outputs - real, nothing-to-reclaim, wide
+  spacing, and unreadable. No DISM run, nothing on the machine touched.
+- Gate: **52 ok, exit 0**, unelevated.
+
+**The stage caught a bug in itself before it caught anything else, which is the
+point of the rule.** Written through a bash heredoc, Python read the path
+`scripts-...` as an OCTAL ESCAPE and wrote a literal 0x04 control character
+into the filename, so `ParseFile` silently found nothing. Because the stage
+fails when it finds no function rather than passing an empty check, it went red
+immediately instead of printing green over a test that examined nothing. Build
+check scripts with the Write tool, not heredocs - this is the second time this
+exact shell behaviour has produced a false green in this repo.
+
+Also worth recording: **Tre reports the installer ran on a SECOND PC and worked
+well.** That is the first evidence from any machine but this one. It is the
+install path, not the gate, so queue 1 stays open - but the repo is no longer
+at literally one data point.
+
 ## 2026-09-02 - option 5 pressed: queue 4 is CLOSED, and DISM contradicted itself
 
 The last unpressed option ran elevated in a time-boxed window. **All six menu
