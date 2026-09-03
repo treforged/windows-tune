@@ -61,6 +61,18 @@ handing its own detector a planted bad path and failing if it matches nothing.
 paths" was not true - `install.ps1`'s help example was one. Stage 14 is why that
 claim is now checked by a gate instead of by a grep somebody remembers to run.
 
+**Follow-on the same session: net-tune got its own gate.** Eight of its ELEVATED
+scripts had the guard-that-can-never-fire - `Split-Path -Parent
+$MyInvocation.MyCommand.Path` with the emptiness check after it - and every one
+of them derived its LOG and its REVERT path from that call. All eight now try
+`$PSScriptRoot` first. New `net-tune/tests/preflight.ps1`: parse, no hardcoded
+path (planted positive), guard shape, each guard LIFTED OUT and RUN with no
+script file behind it (never the elevated body), and no orphaned revert file.
+38 ok, exit 0. Proven red three ways. Its planted-path check caught a bug in its
+own detector regex on the first run, which had been reporting clean while
+matching nothing. net-tune is not a git repo, so `net-tune/handoff.md` - also new
+- is the only record.
+
 ## 2026-09-02 - queue 1 dropped; the second-machine class tested WITHOUT one
 
 Tre: *"remove that from to do list. im not going back to that pc any time soon.
