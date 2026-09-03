@@ -834,6 +834,52 @@ rediscovered): this desk is SAFE TO MOVE, but NOT safe to RENAME.**
    proven red three ways (two planted typos, and a renamed table). See the
    top section.
 
+## The net-tune merge: history stayed private, three tests came over (2026-09-03)
+
+Tre asked for net-tune to be merged into windows-tune so people download and run
+both in one go. Two findings changed the shape of that job, and both are worth
+not re-deriving.
+
+**The merge was already about 90 percent done.** Scripts 01 to 06 here ARE
+net-tune generalized. Each pair was checked, not assumed: 01 covers net-tune.ps1,
+02 covers perf-tune.ps1, 04 covers store-cleanup.ps1, 05 covers
+restore-defender/defender-force/ensure-protected, and 06 is the vendor-neutral
+form of the two Surfshark scripts. The design goal was already met too - the menu
+is per-task, so nobody is forced into the network half to get the Windows half.
+
+**DELETING AFTER MERGING DOES NOT UNPUBLISH.** net-tune's first commit
+(`191b5ce`) carries a full drive inventory with the username in it, a captured
+security posture of one machine, and generated revert files holding that
+machine's LAN DNS. A subtree merge would have put all of it into this PUBLIC repo
+permanently, even with a later commit deleting the files. So the history stayed
+in the private net-tune repo - which is where an internal handoff belongs - and
+the three test files came over as a fresh commit citing `191b5ce` and `af3e319`.
+That citation is the only surviving link between this repo and that record.
+
+**What came over:** `tests/revert-lib.ps1`, `tests/revert-drift.ps1` and
+`tests/revert-credibility.ps1`. They answer a question preflight could not:
+would running a revert file put back what it captured? Neither ever runs one.
+The port rebound them to `scripts\`, keyed NIC targets on the property
+DisplayName alone because 01 resolves its adapter at runtime, and taught the
+parser this repo's `@{ Name = ...; Value = ... }` table shape.
+
+**What was deliberately left behind, and must stay behind:** storage.txt,
+test-05.out, excl-after.txt, the three generated `*-revert.ps1` captures,
+test-05.ps1, and net-tune's own handoff.md. The `evals/*.txt` moved to
+`~/.claude/ollama/evals/`.
+
+**Preflight is 83 ok, exit 0.** Stage 18 hands the two new checks four planted
+fixtures and asserts all eight verdicts, four of them RED - a no-op revert, an
+unreadable setting, and an empty folder for each script. The fixtures are parsed
+and never executed. Note the limit: no revert file exists in a clean checkout, so
+the fixtures prove the logic and the real-machine path is first exercised when
+somebody actually runs 01 or 02.
+
+**Free-tier note.** ollama qwen3:14b drafted the fixture stage and got four of
+eight expectations backwards - it thought the drift check should fail on a no-op
+revert. Scored in `~/.claude/ollama/playbook.md`: this tier drafts harness SHAPE
+acceptably and assert TABLES unacceptably.
+
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
