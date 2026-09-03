@@ -802,7 +802,7 @@ rediscovered): this desk is SAFE TO MOVE, but NOT safe to RENAME.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 02:45 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 13:24 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -813,14 +813,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+724c330 feat(01,02): read the values back off the machine instead of printing an after-state
+f37df40 docs(handoff): RestoreHealth cleared the flag and moved the fault, it did not fix it
 a7cca72 test(preflight): assert the sandbox can never write into the working tree
 fe86156 docs(handoff): the disk clears option 5 of causing the store damage
 dbcf9b1 docs(readme): say that 04 checks store health before it cleans
 04ed2e3 feat(04,tests): refuse to clean a component store that is already damaged
 d2d3ddb docs(handoff): a revert's values are now checked against what the tune actually sets
 3a306c7 docs(handoff): a revert promises to restart a service that no longer exists
-eddcc4b docs(handoff): a net-tune revert file would have left this machine with no antivirus
-893c3e6 docs(handoff): net-tune's eight elevated scripts had the guard that can never fire
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
