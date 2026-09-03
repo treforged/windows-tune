@@ -5,6 +5,30 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-09-03 - measuring context: megabytes cannot do it (machine-level, for Sam)
+
+Not a windows-tune change. Recorded here because this desk did the measurement
+and a cold session would otherwise re-derive it.
+
+- **Transcript file size is NOT a proxy for context.** Across the 14 largest
+  transcripts on this machine, bytes per token runs 16.0 to 130.5 - an **8.2x
+  spread**. A 7.96 MB session held 941,635 tokens while a 17.38 MB session held
+  909,779. The bigger file held less context.
+- **The real number is already recorded.** Every assistant line carries
+  `message.usage`, and `input_tokens + cache_read_input_tokens +
+  cache_creation_input_tokens` is the context that request carried.
+- `claudecontext/context_size.py` reads it. Installed by Sam, sha verified, three
+  modes live-tested: list, `--compactions`, and `--log` for a Stop hook.
+- **No threshold exists yet, and none was invented.** Only **2** compaction
+  events exist on this disk, both `trigger=manual`, at pre-token counts of
+  **209,889** and **666,655**. Neither measures where AUTOMATIC compaction fires.
+  The highest context seen with no compaction at all is **946,249 tokens on a 1M
+  window**.
+- **The sample is biased toward interactive desks.** A Remote Control session
+  writes no transcript to this disk. Any future number must say so.
+- `Forgenta Token Usage` now runs nightly at 23:30, so the earliest honest
+  threshold is about **2026-09-10**. That is a wait for DATA, not for effort.
+
 ## 2026-09-03 - "applied" is not "changed": 01 and 02 now read their values back
 
 Tre's standing requirement across every desk today: evidence must be a LIVE test,
@@ -813,7 +837,7 @@ rediscovered): this desk is SAFE TO MOVE, but NOT safe to RENAME.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 13:24 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 15:27 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -824,14 +848,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+08a5751 docs(handoff): the sixth Tier A value reads Disabled when elevated, as 01 runs
+19e3049 chore(handoff): refresh the machine-written auto-snapshot
 724c330 feat(01,02): read the values back off the machine instead of printing an after-state
 f37df40 docs(handoff): RestoreHealth cleared the flag and moved the fault, it did not fix it
 a7cca72 test(preflight): assert the sandbox can never write into the working tree
 fe86156 docs(handoff): the disk clears option 5 of causing the store damage
 dbcf9b1 docs(readme): say that 04 checks store health before it cleans
 04ed2e3 feat(04,tests): refuse to clean a component store that is already damaged
-d2d3ddb docs(handoff): a revert's values are now checked against what the tune actually sets
-3a306c7 docs(handoff): a revert promises to restart a service that no longer exists
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
