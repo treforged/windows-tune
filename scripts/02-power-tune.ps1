@@ -77,4 +77,16 @@ powercfg /setacvalueindex $active $SUB_PROCESSOR $PROCTHROTTLEMIN $Floor
 powercfg /setdcvalueindex $active $SUB_PROCESSOR $PROCTHROTTLEMIN $Floor
 powercfg /setactive $active
 
-Write-Host "Minimum processor state AFTER:  $(Get-MinState)%" -ForegroundColor Green
+# Read the value back off the machine. powercfg reports nothing on failure, so
+# "it ran" and "it changed" are different claims and only one of them matters.
+$afterState = Get-MinState
+Write-Host "Minimum processor state AFTER:  $afterState%" -ForegroundColor Green
+if ("$afterState" -eq '') {
+    Write-Host "  UNREADABLE - could not read the value back, so whether it applied is unknown." -ForegroundColor Yellow
+} elseif ([string]$afterState -eq [string]$Floor) {
+    Write-Host "  verified: read back off the system, not reported by this script." -ForegroundColor Green
+} else {
+    Write-Host "  NOT APPLIED: wanted $Floor%, the machine reports $afterState%." -ForegroundColor Red
+    Write-Host "  powercfg reported no error, so this is what a silent failure looks like." -ForegroundColor Yellow
+    Write-Host "  Nothing was rolled back; the revert file is still valid." -ForegroundColor Yellow
+}
