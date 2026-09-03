@@ -26,8 +26,54 @@ CBS.log names exactly one file:
     Attempting to mark store corrupt with category 'CorruptPayloadFile'
 
 So: repairable, one payload file, and the repair-from-backups path could not find
-it. `DISM /Online /Cleanup-Image /RestoreHealth` with an internet connection is
-the supported fix. It has NOT been run - that is Tre's call on his own machine.
+it. `DISM /Online /Cleanup-Image /RestoreHealth` was approved and **run, and it
+worked**:
+
+    The restore operation completed successfully.   exit 0
+    02:30:50 -> 02:46:30, about 16 minutes, from Windows Update, no reboot.
+
+Verified by RE-READING the state rather than by trusting that line - the same
+rule that caught option 5 reporting success while reclaiming nothing:
+
+    DISM /Online /Cleanup-Image /CheckHealth
+    -> No component store corruption detected.     exit 0
+
+**And it was still not fixed.** That reading was true at that instant and it was
+not enough. Enabling Sandbox again one minute later failed with the SAME error,
+and `CheckHealth` then went back to `The component store is repairable`. The
+verification was honest and the conclusion drawn from it was premature: DISM's
+verdict is a FLAG, and RestoreHealth clears the flag. Only a real servicing
+transaction re-tests the thing itself, and it re-set the flag immediately.
+
+**What RestoreHealth actually did - it MOVED the fault.** Before, the component
+folder held `SgrmEnclave_secure.dll` and the error named `SgrmEnclave.dll`. After,
+it holds `SgrmEnclave.dll` (546,824 bytes, written 02:44:49 during the repair) and
+the error names `SgrmEnclave_secure.dll`. Same defect, other file:
+
+    Regenerating payload files from delta files on component:
+      amd64_security-octagon-enclave_..._10.0.26100.1150
+    (F) Unexpected compression state. CompressedFileType for
+      ...\SgrmEnclave_secure.dll is 0, ComponentFileFlags : LZMS: 3
+    Attempting to mark store corrupt with category 'CorruptPayloadFile'
+    STATUS_SXS_COMPONENT_STORE_CORRUPT in
+      ComponentStore::CRawStoreLayout::RecursivelyRegenerateComponentPayload
+    Failed to decompress OC Content. [0x80073712 ERROR_SXS_COMPONENT_STORE_CORRUPT]
+
+So the component needs both files, each is stored UNCOMPRESSED where the manifest
+says LZMS, and delta regeneration fails on whichever one is present. Restoring
+one appears to displace the other. Running RestoreHealth again is retrying a
+command that already failed in a way it cannot fix - the antipattern, not the fix.
+
+No reboot is pending (`RebootPending`, `RebootRequired`, `RebootInProgress`,
+`PackagesPending` all False). `Containers-DisposableClientVM` is still `Disabled`.
+This is past a routine repair and is parked for a decision rather than improvised
+at 03:00.
+
+**Worth noting for the product:** 04's new health gate behaves exactly right on
+this genuinely damaged machine - `CheckHealth` reads `repairable`, so option 5
+would STOP and print the repair instructions instead of running a cleanup that
+cannot help. The gate was written from this machine's failure and is now
+confirmed against it.
 
 **Did option 5 cause it? No, and the disk says so rather than the reasoning.**
 The suspicion was fair: the damaged component is version `10.0.26100.1150` on an
@@ -711,7 +757,7 @@ rediscovered): this desk is SAFE TO MOVE, but NOT safe to RENAME.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 02:28 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 02:45 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -722,14 +768,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+a7cca72 test(preflight): assert the sandbox can never write into the working tree
+fe86156 docs(handoff): the disk clears option 5 of causing the store damage
+dbcf9b1 docs(readme): say that 04 checks store health before it cleans
 04ed2e3 feat(04,tests): refuse to clean a component store that is already damaged
 d2d3ddb docs(handoff): a revert's values are now checked against what the tune actually sets
 3a306c7 docs(handoff): a revert promises to restart a service that no longer exists
 eddcc4b docs(handoff): a net-tune revert file would have left this machine with no antivirus
 893c3e6 docs(handoff): net-tune's eight elevated scripts had the guard that can never fire
-fbbea5a fix(install,preflight): kill the last absolute path, and gate it so it cannot come back
-bac4e7b docs(handoff): migration note - safe to MOVE, not safe to RENAME
-c003498 fix(01,02): a non-English Windows got a .NET error naming nothing
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
