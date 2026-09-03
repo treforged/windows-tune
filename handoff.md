@@ -29,16 +29,40 @@ So: repairable, one payload file, and the repair-from-backups path could not fin
 it. `DISM /Online /Cleanup-Image /RestoreHealth` with an internet connection is
 the supported fix. It has NOT been run - that is Tre's call on his own machine.
 
-**A hypothesis this repo has to take seriously, stated as one.** The missing file
-belongs to component version `10.0.26100.1150` on an image at `10.0.26200.9168` -
-a SUPERSEDED version, which is exactly what `DISM /StartComponentCleanup` prunes,
-and exactly what option 5 ran on 2026-09-02. StartComponentCleanup without
-`/ResetBase` is a supported, routine operation and is not supposed to leave a
-store unrepairable, so this is not a claim that option 5 caused it. But the
-sequence is: option 5 runs, reports success, reclaims nothing while contradicting
-its own analysis - and the store later reports corrupt in the class of thing
-cleanup touches. The 2026-09-02 entry below treated that contradiction as DISM
-overstating a success line. It may have been the first symptom.
+**Did option 5 cause it? No, and the disk says so rather than the reasoning.**
+The suspicion was fair: the damaged component is version `10.0.26100.1150` on an
+image at `10.0.26200.9168` - a SUPERSEDED version, which is exactly what
+`DISM /StartComponentCleanup` prunes, and exactly what option 5 ran on
+2026-09-02. Three findings kill it:
+
+- **The WinSxS `Backup` directory was last written 2026-09-01 00:10:55.** The
+  cleanup ran 2026-09-02 00:20:29. Removing an entry from an NTFS directory
+  updates that directory's mtime, so a prune that deleted a backup payload would
+  have stamped it 09-02. It reads 09-01, a day earlier. That cleanup never
+  modified the backups directory at all.
+- **The cleanup ran for 30 seconds** (00:20:28 to 00:20:58) and reclaimed
+  0.03 GB. A prune that removed almost nothing cannot have removed the last good
+  copy of anything.
+- **The first error is not a missing file.** It is
+  `Unexpected compression state. CompressedFileType for ...SgrmEnclave.dll is 0,
+  ComponentFileFlags : LZMS: 3` - a payload whose compression state does not
+  match its manifest. A prune does not produce that shape; an interrupted or
+  interfered-with servicing write does. The "unable to repair from backups" line
+  that made this look like a deletion is the repair ATTEMPT failing, not the
+  cause.
+
+The corruption was first marked `2026-09-03 02:22:07` - during the
+Enable-WindowsOptionalFeature attempt above. It was latent until something
+finally looked.
+
+**A second hypothesis, not oversold.** That backup directory's last write sits
+about fifteen minutes before `surfshark-av-off-revert.ps1`'s capture stamp of
+`2026-09-01T00:26:14` - the window in which net-tune was retiring Surfshark's
+antivirus and handing protection back to Defender. `SgrmEnclave` is System Guard
+Runtime Monitor, a SECURITY component. An antivirus transition across a servicing
+operation is a more plausible disruptor of a security payload than a 30-second
+prune the next day. Close timestamps are not causation and this is not a
+conclusion; it is recorded so the next person has it.
 
 **04 now asks about HEALTH before it cleans anything.** A cleanup cannot help a
 damaged store and DISM will still print `The operation completed successfully`,
@@ -62,6 +86,15 @@ locked out of the option.
 - Proven red on purpose: weakening the parser so `repairable` reads as `Unknown`
   gives `a damaged store would be cleaned anyway`, exit 1; renaming the STOP so
   the order check cannot find it also exits 1.
+
+**Operational note for whoever runs a long elevated job from a session here.**
+`Start-Process -Verb RunAs -Wait` survives its caller: when the harness killed the
+wrapper on a timeout, `Dism.exe`, `DismHost.exe`, `TrustedInstaller.exe` and
+`TiWorker.exe` were all still running and the repair carried on. Check
+`tasklist` before concluding a repair died, and NEVER start a second DISM to
+"retry" - they contend for the same servicing lock and that is how a recoverable
+store becomes a stuck one. Watch the transcript for its completion marker
+instead.
 
 **`tests/sandbox-run.ps1` is written and cannot yet be proven.** It runs the
 installer, the gate, the menu's read-only path and `05 -Diagnose` inside a
@@ -667,7 +700,7 @@ rediscovered): this desk is SAFE TO MOVE, but NOT safe to RENAME.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 02:02 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 02:28 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -678,6 +711,7 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+04ed2e3 feat(04,tests): refuse to clean a component store that is already damaged
 d2d3ddb docs(handoff): a revert's values are now checked against what the tune actually sets
 3a306c7 docs(handoff): a revert promises to restart a service that no longer exists
 eddcc4b docs(handoff): a net-tune revert file would have left this machine with no antivirus
@@ -685,7 +719,6 @@ eddcc4b docs(handoff): a net-tune revert file would have left this machine with 
 fbbea5a fix(install,preflight): kill the last absolute path, and gate it so it cannot come back
 bac4e7b docs(handoff): migration note - safe to MOVE, not safe to RENAME
 c003498 fix(01,02): a non-English Windows got a .NET error naming nothing
-c0ca3d4 feat(04): compare DISM's own before/after verdict instead of trusting its success line
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
