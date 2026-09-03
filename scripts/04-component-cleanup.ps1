@@ -53,6 +53,48 @@ function Get-StoreFacts {
     }
 }
 
+# A cleanup on a CORRUPT component store is at best pointless: DISM will still
+# print "The operation completed successfully" and reclaim nothing, which is
+# exactly what this machine did on 2026-09-02 before the corruption surfaced
+# through an unrelated feature install. Ask about health FIRST and say so.
+function Get-StoreHealth {
+    param([object[]]$DismOutput)
+    $text = $DismOutput -join "`n"
+    if ($text -match '(?i)no component store corruption detected') { return 'Healthy' }
+    if ($text -match '(?i)component store corruption was repaired')  { return 'Healthy' }
+    if ($text -match '(?i)the component store is repairable')        { return 'Repairable' }
+    if ($text -match '(?i)component store (has been |is )?corrupt')  { return 'Corrupt' }
+    # Unreadable is UNKNOWN, never "healthy". A non-English Windows lands here,
+    # and so does a DISM that failed before it printed a verdict.
+    return 'Unknown'
+}
+
+Write-Host "`n--- HEALTH ---" -ForegroundColor Yellow
+$healthOut = & Dism.exe /Online /Cleanup-Image /CheckHealth 2>&1
+$healthOut | Write-Host
+$health = Get-StoreHealth $healthOut
+if ($health -eq 'Repairable' -or $health -eq 'Corrupt') {
+    Write-Host ''
+    Write-Host 'STOPPING: this PC''s component store is damaged.' -ForegroundColor Red
+    Write-Host '  A cleanup cannot help a damaged store, and DISM will still report' -ForegroundColor Yellow
+    Write-Host '  success while reclaiming nothing. Nothing was changed.' -ForegroundColor Yellow
+    Write-Host ''
+    Write-Host '  Repair it first, from an elevated PowerShell:' -ForegroundColor Cyan
+    Write-Host '    DISM /Online /Cleanup-Image /RestoreHealth' -ForegroundColor Cyan
+    Write-Host '  That needs an internet connection (it pulls replacement files from' -ForegroundColor DarkGray
+    Write-Host '  Windows Update), takes a while, and is the supported fix. Then run' -ForegroundColor DarkGray
+    Write-Host '  this option again.' -ForegroundColor DarkGray
+    Write-Host ''
+    Write-Host '  A damaged store also blocks adding or removing Windows features and' -ForegroundColor DarkGray
+    Write-Host '  can make Windows updates fail in ways that look like something else.' -ForegroundColor DarkGray
+    return
+}
+if ($health -eq 'Unknown') {
+    Write-Host ''
+    Write-Host '  Could not read a health verdict from DISM, so this continues without' -ForegroundColor Yellow
+    Write-Host '  one rather than assuming the store is healthy.' -ForegroundColor Yellow
+}
+
 Write-Host "`n--- ANALYZE ---" -ForegroundColor Yellow
 $analysis = & Dism.exe /Online /Cleanup-Image /AnalyzeComponentStore 2>&1
 $analysis | Write-Host
