@@ -61,6 +61,18 @@ handing its own detector a planted bad path and failing if it matches nothing.
 paths" was not true - `install.ps1`'s help example was one. Stage 14 is why that
 claim is now checked by a gate instead of by a grep somebody remembers to run.
 
+**Then the value check, and it found the same class from the other side.**
+`net-tune/tests/revert-drift.ps1` reads the CURRENT value behind every claim each
+revert makes - never applying one - and reports it. 20 claims: 19 verifiable and
+all 19 differing from the machine, which is the healthy reading for a tune that
+IS applied, and 1 UNVERIFIABLE. That one is real: `surfshark-av-off-revert.ps1`
+promises to set the `Surfshark Antivirus` service back to Automatic and that
+service no longer exists, because a sibling script uninstalled the app. A revert
+that cannot do the first thing it promises is the only outcome the script fails
+on; drift alone exits 0, because only a human knows whether a value moved
+because the tune did it or because the capture was wrong. All three outcomes
+proven by plants. Detail in `net-tune/handoff.md`.
+
 **And the serious one, later the same session: a net-tune revert file would have
 left this machine with NO antivirus.** `surfshark-av-off-revert.ps1` started the
 Surfshark service and then disabled Defender on the next line, unconditionally -
@@ -574,29 +586,25 @@ rediscovered): this desk is SAFE TO MOVE, but NOT safe to RENAME.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-02 13:04 by handoff_hook. Everything below this heading is
+_Written 2026-09-02 21:51 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (1 file(s)):**
-
-```
-M handoff.md
-```
+- **Working tree:** clean
 
 - **Recent commits:**
 
 ```
+eddcc4b docs(handoff): a net-tune revert file would have left this machine with no antivirus
+893c3e6 docs(handoff): net-tune's eight elevated scripts had the guard that can never fire
+fbbea5a fix(install,preflight): kill the last absolute path, and gate it so it cannot come back
 bac4e7b docs(handoff): migration note - safe to MOVE, not safe to RENAME
 c003498 fix(01,02): a non-English Windows got a .NET error naming nothing
 c0ca3d4 feat(04): compare DISM's own before/after verdict instead of trusting its success line
 74370b2 docs(handoff): option 5 pressed - queue 4 closed, and DISM contradicted its own success
 6cf7bbb fix(menu): option 5's warning described /ResetBase, which the menu cannot pass
-bd94ab6 docs(handoff): refresh the auto-snapshot block
-a62627a docs(handoff): carry the two unanswered offers forward before this duplicate tab closes
-86d6302 docs(handoff): correct it - Surfshark is uninstalled; 14 orphaned WSC keys remain
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
