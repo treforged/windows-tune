@@ -61,6 +61,19 @@ handing its own detector a planted bad path and failing if it matches nothing.
 paths" was not true - `install.ps1`'s help example was one. Stage 14 is why that
 claim is now checked by a gate instead of by a grep somebody remembers to run.
 
+**And the gap that closed it, 2026-09-03: are the revert's values the RIGHT
+values?** `net-tune/tests/revert-credibility.ps1` reads a third source - what the
+TUNE itself sets - so a claim is no longer merely "different from the machine"
+but positively credible: the tune set Y, the machine holds Y, so the revert
+holding X is exactly right. 20 claims against 21 targets: 19 credible, 1 MISSING
+(the Surfshark service that no longer exists), nothing else. A revert that would
+restore the TUNED value undoes nothing and exits 1; drift and not-applied are
+reported and exit 0, because only a human knows why a value moved. Targets are
+read through the AST rather than by text, and a plant proves why - `net-tune.ps1`
+contains the same netsh line twice, once as a command it runs and once inside a
+string it writes into the revert file, and a grep cannot tell those apart. Six
+plants, one per verdict branch. Detail in `net-tune/handoff.md`.
+
 **Then the value check, and it found the same class from the other side.**
 `net-tune/tests/revert-drift.ps1` reads the CURRENT value behind every claim each
 revert makes - never applying one - and reports it. 20 claims: 19 verifiable and
