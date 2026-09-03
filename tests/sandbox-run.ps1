@@ -168,18 +168,23 @@ $inner = @(Get-ChildItem $tmp -Directory)[0].FullName
 '@
 
 # ------------------------------------------------------------------ .wsb -----
-$wsb = Join-Path $stage 'windows-tune.wsb'
-$wsbXml = @"
+# Built by a function so the gate can lift it out and assert the mapping rules
+# without a sandbox to run. The writable host mapping is the ONLY way a
+# disposable VM can reach back into this machine, so it is the thing worth
+# asserting rather than trusting.
+function New-SandboxConfig {
+    param([string]$ReadOnlyHostFolder, [string]$WritableHostFolder)
+    @"
 <Configuration>
   <Networking>Disable</Networking>
   <MappedFolders>
     <MappedFolder>
-      <HostFolder>$inDir</HostFolder>
+      <HostFolder>$ReadOnlyHostFolder</HostFolder>
       <SandboxFolder>C:\in</SandboxFolder>
       <ReadOnly>true</ReadOnly>
     </MappedFolder>
     <MappedFolder>
-      <HostFolder>$outDir</HostFolder>
+      <HostFolder>$WritableHostFolder</HostFolder>
       <SandboxFolder>C:\out</SandboxFolder>
       <ReadOnly>false</ReadOnly>
     </MappedFolder>
@@ -189,7 +194,10 @@ $wsbXml = @"
   </LogonCommand>
 </Configuration>
 "@
-Set-Content -Path $wsb -Value $wsbXml -Encoding UTF8
+}
+
+$wsb = Join-Path $stage 'windows-tune.wsb'
+Set-Content -Path $wsb -Value (New-SandboxConfig $inDir $outDir) -Encoding UTF8
 Pass 'wrote the sandbox config (repo read-only, one writable out folder, no network)'
 
 # ------------------------------------------------------------------- run -----
