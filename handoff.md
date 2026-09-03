@@ -5,6 +5,74 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-09-03 - this PC's component store is damaged, and 04 now refuses to clean a damaged store
+
+Tre approved enabling Windows Sandbox (queue 1's replacement - a genuinely clean
+Windows to test against). Enabling it FAILED:
+
+    Enable-WindowsOptionalFeature -Online -FeatureName Containers-DisposableClientVM
+    -> The component store has been corrupted.
+
+Read-only diagnosis, elevated, nothing repaired and nothing changed:
+
+    DISM /Online /Cleanup-Image /CheckHealth  -> The component store is repairable.
+    DISM /Online /Cleanup-Image /ScanHealth   -> The component store is repairable.
+
+CBS.log names exactly one file:
+
+    Unable to repair payload file 'SgrmEnclave.dll' for component
+    amd64_security-octagon-enclave_..._10.0.26100.1150 from backups directory.
+    A backup file may not exist or may be corrupt. Falling back to WU.
+    Attempting to mark store corrupt with category 'CorruptPayloadFile'
+
+So: repairable, one payload file, and the repair-from-backups path could not find
+it. `DISM /Online /Cleanup-Image /RestoreHealth` with an internet connection is
+the supported fix. It has NOT been run - that is Tre's call on his own machine.
+
+**A hypothesis this repo has to take seriously, stated as one.** The missing file
+belongs to component version `10.0.26100.1150` on an image at `10.0.26200.9168` -
+a SUPERSEDED version, which is exactly what `DISM /StartComponentCleanup` prunes,
+and exactly what option 5 ran on 2026-09-02. StartComponentCleanup without
+`/ResetBase` is a supported, routine operation and is not supposed to leave a
+store unrepairable, so this is not a claim that option 5 caused it. But the
+sequence is: option 5 runs, reports success, reclaims nothing while contradicting
+its own analysis - and the store later reports corrupt in the class of thing
+cleanup touches. The 2026-09-02 entry below treated that contradiction as DISM
+overstating a success line. It may have been the first symptom.
+
+**04 now asks about HEALTH before it cleans anything.** A cleanup cannot help a
+damaged store and DISM will still print `The operation completed successfully`,
+so a stranger with this exact problem currently gets a success message from
+windows-tune and no idea their PC needs repair. `Get-StoreHealth` reads DISM's
+`/CheckHealth` verdict, and on Repairable or Corrupt the script STOPS without
+changing anything and prints the `RestoreHealth` command, what it needs, and the
+fact that a damaged store also blocks adding Windows features and can make
+updates fail in ways that look like something else. Unreadable output is
+`Unknown` - never "healthy" - and only warns, so a non-English Windows is not
+locked out of the option.
+
+- `tests/preflight.ps1` stage 15: `Get-StoreHealth` is lifted by the Parser and
+  **CALLED** with six synthetic DISM outputs, including the exact wording this
+  machine produced today, and German text that must come back `Unknown`. Then 04
+  is checked statically for the STOP sitting BETWEEN the verdict and the cleanup -
+  a verdict nothing acts on is not a gate.
+- Gate: **65 ok, exit 0**, unelevated.
+- Pressed with REAL data: this machine's actual `/CheckHealth` output fed through
+  04's own function returns `Repairable`, so 04 would stop here today.
+- Proven red on purpose: weakening the parser so `repairable` reads as `Unknown`
+  gives `a damaged store would be cleaned anyway`, exit 1; renaming the STOP so
+  the order check cannot find it also exits 1.
+
+**`tests/sandbox-run.ps1` is written and cannot yet be proven.** It runs the
+installer, the gate, the menu's read-only path and `05 -Diagnose` inside a
+disposable clean Windows - repo mapped READ-ONLY, one writable folder for the
+result, networking DISABLED so the install is proven from a local zip. `-RunTune`
+additionally presses option 1 for real, which is the first place this repo's
+elevated WRITE path could ever be run without touching somebody's actual PC. It
+currently refuses with a clear message saying Sandbox is not installed and how to
+enable it, which is the honest empty state and all that can be claimed until the
+store is repaired and the machine rebooted.
+
 ## 2026-09-02 - dead paths after the folder move, and a gate so they cannot come back
 
 Gus also owns **net-tune** from today (Sam, 2026-09-02) - same domain, same
@@ -599,7 +667,7 @@ rediscovered): this desk is SAFE TO MOVE, but NOT safe to RENAME.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-02 21:51 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 02:02 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -610,14 +678,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+d2d3ddb docs(handoff): a revert's values are now checked against what the tune actually sets
+3a306c7 docs(handoff): a revert promises to restart a service that no longer exists
 eddcc4b docs(handoff): a net-tune revert file would have left this machine with no antivirus
 893c3e6 docs(handoff): net-tune's eight elevated scripts had the guard that can never fire
 fbbea5a fix(install,preflight): kill the last absolute path, and gate it so it cannot come back
 bac4e7b docs(handoff): migration note - safe to MOVE, not safe to RENAME
 c003498 fix(01,02): a non-English Windows got a .NET error naming nothing
 c0ca3d4 feat(04): compare DISM's own before/after verdict instead of trusting its success line
-74370b2 docs(handoff): option 5 pressed - queue 4 closed, and DISM contradicted its own success
-6cf7bbb fix(menu): option 5's warning described /ResetBase, which the menu cannot pass
 ```
 
 <!-- AUTO-SNAPSHOT:END -->

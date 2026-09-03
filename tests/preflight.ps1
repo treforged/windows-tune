@@ -38,6 +38,12 @@
      13. LOCALE: 01's Get-TcpGlobal is CALLED with synthetic German netsh output
          and must throw naming the cause; 02's Get-MinState is checked statically
          for the same guard ahead of its ToInt32.
+     15. 04's Get-StoreHealth is lifted by the Parser and CALLED with synthetic
+         DISM text: healthy, repairable, the exact "has been corrupted" wording
+         this machine produced on 2026-09-03, and unreadable output which must
+         come back as Unknown rather than as healthy. Then 04 is checked
+         statically for the STOP that must sit between that verdict and the
+         cleanup.
      14. No file hardcodes an absolute machine-specific path (C:\Users\..., a
          C:\tools\... install root). Those break the moment the folder moves and
          resolve somewhere unexpected on a stranger's box. The detector is then
@@ -372,6 +378,46 @@ elseif ($pathHits -eq 0) { Pass "no hardcoded absolute machine paths ($scanned14
 $planted = 'C:' + '\Users\someone\Desktop\thing.ps1'
 if (@(Get-HardcodedPathHit $planted).Count) { Pass 'hardcoded-path detector catches a planted path' }
 else { Fail 'hardcoded-path detector matched nothing on a planted bad path - stage 14 proved nothing' }
+
+# 15. the component-store HEALTH verdict, and the stop that must follow it.
+#     A cleanup on a damaged store reclaims nothing and still prints success -
+#     which is what this machine did before its corruption surfaced elsewhere.
+$cleanPath15 = Join-Path (Join-Path $repo 'scripts') '04-component-cleanup.ps1'
+$errors = $null
+$cleanAst15 = [System.Management.Automation.Language.Parser]::ParseFile($cleanPath15, [ref]$null, [ref]$errors)
+$healthFn = $cleanAst15.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-StoreHealth' }, $true)
+if (-not $healthFn) {
+    Fail '04-component-cleanup.ps1 has no Get-StoreHealth - stage 15 checked nothing'
+} else {
+    . ([scriptblock]::Create($healthFn.Extent.Text))
+    $cases15 = @(
+        @{ n = 'healthy';    t = @('Deployment Image Servicing and Management tool', 'No component store corruption detected.', 'The operation completed successfully.'); want = 'Healthy' },
+        @{ n = 'repairable'; t = @('The component store is repairable.', 'The operation completed successfully.'); want = 'Repairable' },
+        @{ n = 'corrupt';    t = @('Error: 14098', 'The component store has been corrupted.'); want = 'Corrupt' },
+        @{ n = 'repaired';   t = @('The component store corruption was repaired.'); want = 'Healthy' },
+        @{ n = 'localized';  t = @('Bereitstellungsabbildwartung', 'irgendwas ganz anderes'); want = 'Unknown' },
+        @{ n = 'empty';      t = @(); want = 'Unknown' }
+    )
+    foreach ($c15 in $cases15) {
+        $got15 = Get-StoreHealth $c15.t
+        if ($got15 -eq $c15.want) { Pass "Get-StoreHealth reads $($c15.n) DISM output as $($c15.want)" }
+        else { Fail "Get-StoreHealth read $($c15.n) output as [$got15], expected [$($c15.want)] - a damaged store would be cleaned anyway" }
+    }
+}
+
+# the verdict is worthless if nothing acts on it: the stop must come BEFORE the
+# cleanup, not after it.
+$cleanText15 = Get-Content $cleanPath15 -Raw
+$iHealth15 = $cleanText15.IndexOf('Get-StoreHealth $healthOut')
+$iStop15 = $cleanText15.IndexOf('STOPPING')
+$iClean15 = $cleanText15.IndexOf('/StartComponentCleanup')
+if ($iHealth15 -lt 0 -or $iStop15 -lt 0 -or $iClean15 -lt 0) {
+    Fail '04 is missing the health read, the stop, or the cleanup - stage 15 could not check their order'
+} elseif ($iHealth15 -lt $iStop15 -and $iStop15 -lt $iClean15) {
+    Pass '04 reads the store health and stops before it ever runs a cleanup'
+} else {
+    Fail "04's health stop is not between the verdict and the cleanup (health=$iHealth15 stop=$iStop15 cleanup=$iClean15) - a damaged store gets cleaned anyway"
+}
 
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green
