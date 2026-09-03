@@ -781,6 +781,30 @@ by anything in this repo.
 
 ## Resume queue
 
+**STATE AT CLOSE, 2026-09-03. THE QUEUE IS EMPTY. This desk retired with
+everything green and pushed, so a successor should NOT go looking for work here
+- read this section, confirm nothing below has reopened, and say so.**
+
+- `tests\preflight.ps1`: **83 ok, exit 0**, unelevated. Tree clean, `origin/main`
+  at 0/0.
+- Items 1 to 6 below are all closed. Nothing is open.
+- **Nothing here needs Tre's hands.** The one thing that does is the component
+  store, and he has already answered it: do nothing now, in-place repair upgrade
+  when he wants it fixed. Do not re-run RestoreHealth - it cleared the flag and
+  MOVED the fault rather than fixing it. `tests/sandbox-run.ps1` stays unprovable
+  end to end until the store is fixed and the machine rebooted; its mapping rules
+  ARE gated meanwhile, proven red three ways.
+- **net-tune is a git repo as of 2026-09-03 and has a remote now.** It was not a
+  repo at all before that date. See the merge section below for what stays
+  private and why.
+- **`forged-agents` was built from this desk on 2026-09-03** and lives at
+  `Desktop/TRE-Forged/forged-agents`, pushed PRIVATE to
+  `treforged/forged-agents`. **PUBLIC IS A SEPARATE DECISION AND IT HAS NOT BEEN
+  MADE - do not push it public.** Run `python tests/check_public_safe.py
+  --self-test` and then `--denylist denylist.txt` before any push; the deny list
+  is deliberately not committed, so a fresh clone has to rebuild it.
+
+
 **For the Desktop folder migration (checked 2026-09-02, so it is not
 rediscovered): this desk is SAFE TO MOVE, but NOT safe to RENAME.**
 
@@ -883,25 +907,29 @@ acceptably and assert TABLES unacceptably.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 16:24 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 16:58 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Working tree:** clean
+- **Uncommitted (1 file(s)):**
+
+```
+M handoff.md
+```
 
 - **Recent commits:**
 
 ```
+ba91bf5 docs(handoff): why net-tune's history stayed private and only its tests came over
+3589621 test(revert): prove a revert file would restore what was actually there
+875dd21 chore(handoff): refresh the auto-snapshot at the close of this desk
 9a96425 docs(handoff): record why megabytes cannot measure context, before this desk closes
 08a5751 docs(handoff): the sixth Tier A value reads Disabled when elevated, as 01 runs
 19e3049 chore(handoff): refresh the machine-written auto-snapshot
 724c330 feat(01,02): read the values back off the machine instead of printing an after-state
 f37df40 docs(handoff): RestoreHealth cleared the flag and moved the fault, it did not fix it
-a7cca72 test(preflight): assert the sandbox can never write into the working tree
-fe86156 docs(handoff): the disk clears option 5 of causing the store damage
-dbcf9b1 docs(readme): say that 04 checks store health before it cleans
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
