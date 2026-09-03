@@ -38,6 +38,10 @@
      13. LOCALE: 01's Get-TcpGlobal is CALLED with synthetic German netsh output
          and must throw naming the cause; 02's Get-MinState is checked statically
          for the same guard ahead of its ToInt32.
+     16. sandbox-run.ps1's New-SandboxConfig is lifted and CALLED: the repo must
+         be mapped READ-ONLY and only the out folder writable, and networking
+         must be off. A writable host mapping is the one way a disposable VM can
+         reach back into the real machine, so it is asserted rather than trusted.
      15. 04's Get-StoreHealth is lifted by the Parser and CALLED with synthetic
          DISM text: healthy, repairable, the exact "has been corrupted" wording
          this machine produced on 2026-09-03, and unreadable output which must
@@ -417,6 +421,43 @@ if ($iHealth15 -lt 0 -or $iStop15 -lt 0 -or $iClean15 -lt 0) {
     Pass '04 reads the store health and stops before it ever runs a cleanup'
 } else {
     Fail "04's health stop is not between the verdict and the cleanup (health=$iHealth15 stop=$iStop15 cleanup=$iClean15) - a damaged store gets cleaned anyway"
+}
+
+# 16. the sandbox harness cannot be RUN without Windows Sandbox installed, but
+#     the part that matters can be: what it maps, and how.
+$sbPath16 = Join-Path (Join-Path $repo 'tests') 'sandbox-run.ps1'
+if (-not (Test-Path $sbPath16)) {
+    Fail 'tests\sandbox-run.ps1 is missing - stage 16 checked nothing'
+} else {
+    $errors = $null
+    $sbAst16 = [System.Management.Automation.Language.Parser]::ParseFile($sbPath16, [ref]$null, [ref]$errors)
+    $cfgFn16 = $sbAst16.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'New-SandboxConfig' }, $true)
+    if (-not $cfgFn16) {
+        Fail 'sandbox-run.ps1 has no New-SandboxConfig - stage 16 could not check what it maps'
+    } else {
+        . ([scriptblock]::Create($cfgFn16.Extent.Text))
+        $xml16 = New-SandboxConfig 'C:\PLANTED-REPO' 'C:\PLANTED-OUT'
+        $doc16 = $null
+        try { $doc16 = [xml]$xml16 } catch { Fail "New-SandboxConfig produced invalid XML: $($_.Exception.Message)" }
+        if ($doc16) {
+            $maps16 = @($doc16.Configuration.MappedFolders.MappedFolder)
+            $ro16 = @($maps16 | Where-Object { $_.HostFolder -eq 'C:\PLANTED-REPO' })
+            $rw16 = @($maps16 | Where-Object { $_.HostFolder -eq 'C:\PLANTED-OUT' })
+
+            if ($ro16.Count -eq 1 -and $ro16[0].ReadOnly -eq 'true') { Pass 'sandbox maps the repo READ-ONLY' }
+            else { Fail "sandbox does NOT map the repo read-only (found $($ro16.Count) mapping(s), ReadOnly=$($ro16[0].ReadOnly)) - the VM could write into the working tree" }
+
+            if ($rw16.Count -eq 1 -and $rw16[0].ReadOnly -eq 'false') { Pass 'sandbox maps exactly the out folder writable' }
+            else { Fail "the writable out mapping is wrong (found $($rw16.Count), ReadOnly=$($rw16[0].ReadOnly))" }
+
+            $writable16 = @($maps16 | Where-Object { $_.ReadOnly -ne 'true' })
+            if ($writable16.Count -eq 1) { Pass 'exactly one writable host mapping, and it is the out folder' }
+            else { Fail "$($writable16.Count) writable host mapping(s) - every extra one is a way out of the sandbox onto this machine" }
+
+            if ($doc16.Configuration.Networking -eq 'Disable') { Pass 'sandbox networking is disabled' }
+            else { Fail "sandbox networking is [$($doc16.Configuration.Networking)] - the offline install path is then not what is being tested" }
+        }
+    }
 }
 
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }

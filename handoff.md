@@ -96,7 +96,18 @@ wrapper on a timeout, `Dism.exe`, `DismHost.exe`, `TrustedInstaller.exe` and
 store becomes a stuck one. Watch the transcript for its completion marker
 instead.
 
-**`tests/sandbox-run.ps1` is written and cannot yet be proven.** It runs the
+**The sandbox harness's mapping rules ARE gated, even though the harness itself
+cannot run yet.** The one way a disposable VM can reach back into this machine is
+a writable host mapping, so `New-SandboxConfig` was pulled out into a function
+purely so stage 16 can lift it and CALL it with planted folder names, then assert
+the resulting XML: the repo mapped READ-ONLY, exactly ONE writable mapping and it
+is the out folder, and networking off. Gate: **69 ok, exit 0**. Proven red three
+ways - making the repo mapping writable, turning networking on, and adding a
+third writable mapping of the user profile all fail the gate, the last one with
+`2 writable host mapping(s) - every extra one is a way out of the sandbox onto
+this machine`.
+
+**`tests/sandbox-run.ps1` is written and cannot yet be proven END TO END.** It runs the
 installer, the gate, the menu's read-only path and `05 -Diagnose` inside a
 disposable clean Windows - repo mapped READ-ONLY, one writable folder for the
 result, networking DISABLED so the install is proven from a local zip. `-RunTune`
