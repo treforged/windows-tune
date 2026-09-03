@@ -300,3 +300,66 @@ if ($stagedPending.Count -eq 0) {
 Write-Host "`n=== AFTER ===" -ForegroundColor Green
 netsh int tcp show global
 Get-NetAdapter -Name $AdapterName | Format-Table Name, Status, LinkSpeed -AutoSize
+
+# READ THE VALUES BACK OFF THE MACHINE. Printing the after-state is not the same
+# as checking it: every command above can report success and change nothing, and
+# a settings write that silently did not take looks exactly like one that did.
+# Tier B is exempt on purpose - it is STAGED until the adapter bounces, so it is
+# expected not to be live yet and saying otherwise would be a false alarm.
+Write-Host "`n=== VERIFY (read back from the system, not from this script) ===" -ForegroundColor Green
+# Unreadable and not-applied are DIFFERENT answers and are counted separately.
+# Saying "this change did not take" when the truth is "this value could not be
+# read" is the same class of lie as reporting success without looking - it just
+# points the other way, and it would send someone chasing a change that was fine.
+$notApplied = New-Object System.Collections.Generic.List[string]
+$unreadable = New-Object System.Collections.Generic.List[string]
+function Confirm-Applied {
+    param([string]$What, [string]$Expected, [string]$Actual)
+    if ($null -eq $Actual -or "$Actual" -eq '') {
+        Write-Host ("  UNREADABLE  {0} - wanted '{1}', could not read the current value" -f $What, $Expected) -ForegroundColor Yellow
+        $script:unreadable.Add($What)
+    } elseif ("$Actual".Trim() -ieq "$Expected".Trim()) {
+        Write-Host ("  ok          {0} = {1}" -f $What, $Actual) -ForegroundColor Green
+    } else {
+        Write-Host ("  NOT APPLIED {0} - wanted '{1}', machine has '{2}'" -f $What, $Expected, $Actual) -ForegroundColor Red
+        $script:notApplied.Add($What)
+    }
+}
+
+$after = netsh int tcp show global
+function After-Tcp([string]$label) {
+    foreach ($line in @($after)) {
+        $i = $line.IndexOf(':')
+        if ($i -lt 1) { continue }
+        if ($line.Substring(0, $i).Trim() -ieq $label) { return $line.Substring($i + 1).Trim() }
+    }
+    return $null
+}
+Confirm-Applied 'autotuninglevel' 'normal'  (After-Tcp 'Receive Window Auto-Tuning Level')
+Confirm-Applied 'rss'             'enabled' (After-Tcp 'Receive-Side Scaling State')
+Confirm-Applied 'rsc'             'enabled' (After-Tcp 'Receive Segment Coalescing State')
+
+$ntiNow = (Get-ItemProperty -LiteralPath $mmKey -Name NetworkThrottlingIndex -ErrorAction SilentlyContinue).NetworkThrottlingIndex
+Confirm-Applied 'NetworkThrottlingIndex' '4294967295' ([string][uint32]$ntiNow)
+
+$dnsNow = @((Get-DnsClientServerAddress -InterfaceAlias $AdapterName -AddressFamily IPv4 -ErrorAction SilentlyContinue).ServerAddresses)
+Confirm-Applied 'DNS' '1.1.1.1, 1.0.0.1' ($dnsNow -join ', ')
+
+$pmNow = (Get-NetAdapterPowerManagement -Name $AdapterName -ErrorAction SilentlyContinue).AllowComputerToTurnOffDevice
+Confirm-Applied 'AllowComputerToTurnOffDevice' 'Disabled' ([string]$pmNow)
+
+Write-Host ''
+if ($notApplied.Count) {
+    Write-Host ("$($notApplied.Count) change(s) did NOT take: " + ($notApplied -join '; ')) -ForegroundColor Red
+    Write-Host '  The commands above reported no error, so this is what a silent failure' -ForegroundColor Yellow
+    Write-Host '  looks like. Nothing was rolled back; the revert file is still valid.' -ForegroundColor Yellow
+}
+if ($unreadable.Count) {
+    Write-Host ("$($unreadable.Count) value(s) could not be READ back: " + ($unreadable -join '; ')) -ForegroundColor Yellow
+    Write-Host '  That is not the same as "did not apply" - it means this check could not' -ForegroundColor Yellow
+    Write-Host '  tell either way, and it will not guess.' -ForegroundColor Yellow
+}
+if (-not $notApplied.Count -and -not $unreadable.Count) {
+    Write-Host 'Every Tier A change was read back off the machine and matches.' -ForegroundColor Green
+    Write-Host '(Tier B stays staged until the adapter bounces, so it is not checked here.)' -ForegroundColor DarkGray
+}

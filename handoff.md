@@ -5,6 +5,51 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-09-03 - "applied" is not "changed": 01 and 02 now read their values back
+
+Tre's standing requirement across every desk today: evidence must be a LIVE test,
+not a green build or a log line. A tuning script that "applied" is not a tuning
+script that CHANGED the machine - read the value back off the system, not out of
+your own script.
+
+`01` printed an `=== AFTER ===` block and `02` printed the new percentage. Both
+were displays, not checks: every command in them can report no error and change
+nothing, and a settings write that silently did not take looks exactly like one
+that did. `05` already read its exclusions back - that was the 2026-09-01 fix -
+so this brings 01 and 02 up to the same standard.
+
+- `01` now has a `=== VERIFY (read back from the system, not from this script) ===`
+  block: autotuninglevel, rss, rsc, NetworkThrottlingIndex, DNS and
+  AllowComputerToTurnOffDevice are each read back and compared. Tier B is exempt
+  ON PURPOSE - it is staged until the adapter bounces, so flagging it would be a
+  false alarm.
+- `02` compares `Get-MinState` against the floor it asked for and says which.
+
+**The live test found a bug in the checker itself, which is the whole argument
+for live tests.** The first version counted an UNREADABLE value as a change that
+did not take. Running it against this machine reported
+`AllowComputerToTurnOffDevice` as failed - when the truth was that
+`Get-NetAdapterPowerManagement` needs elevation and the check was running without
+it. That would send someone chasing a change that was fine. Unreadable and
+not-applied are now counted and worded separately: "could not read either way,
+and it will not guess."
+
+Live evidence, read off this machine rather than out of the script:
+
+    ok  autotuninglevel = normal
+    ok  rss = enabled
+    ok  rsc = enabled
+    ok  NetworkThrottlingIndex = 4294967295
+    ok  DNS = 1.1.1.1, 1.0.0.1
+    UNREADABLE AllowComputerToTurnOffDevice   (unelevated; 01 itself runs elevated)
+    -> notApplied=0 unreadable=1
+    02: minimum processor state now 0%, which is what 02 sets.
+
+- `tests/preflight.ps1` stage 17 lifts `Confirm-Applied` and CALLS it with a
+  match, a mismatch and a blank, asserting the blank lands in `unreadable` and
+  NOT in `notApplied`; then checks statically that the verify block sits AFTER
+  the changes it checks. Gate: **72 ok, exit 0**.
+
 ## 2026-09-03 - this PC's component store is damaged, and 04 now refuses to clean a damaged store
 
 Tre approved enabling Windows Sandbox (queue 1's replacement - a genuinely clean

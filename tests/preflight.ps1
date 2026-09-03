@@ -460,6 +460,35 @@ if (-not (Test-Path $sbPath16)) {
     }
 }
 
+# 17. "applied" is not "changed". 01's Confirm-Applied is lifted and CALLED, and
+#     unreadable must NOT be counted as a failed change - saying a change did not
+#     take when the value merely could not be read sends someone chasing nothing.
+$netPath17 = Join-Path (Join-Path $repo 'scripts') '01-network-tune.ps1'
+$errors = $null
+$netAst17 = [System.Management.Automation.Language.Parser]::ParseFile($netPath17, [ref]$null, [ref]$errors)
+$okFn17 = $netAst17.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Confirm-Applied' }, $true)
+if (-not $okFn17) {
+    Fail '01-network-tune.ps1 has no Confirm-Applied - it prints an after-state without checking it'
+} else {
+    $notApplied = New-Object System.Collections.Generic.List[string]
+    $unreadable = New-Object System.Collections.Generic.List[string]
+    . ([scriptblock]::Create($okFn17.Extent.Text))
+    Confirm-Applied 'match' 'normal' 'normal'      *> $null
+    Confirm-Applied 'wrong' 'normal' 'disabled'    *> $null
+    Confirm-Applied 'blank' 'normal' ''            *> $null
+    if ($notApplied.Count -eq 1 -and $notApplied[0] -eq 'wrong') { Pass 'Confirm-Applied counts a mismatch as NOT APPLIED' }
+    else { Fail "Confirm-Applied recorded $($notApplied.Count) not-applied, expected exactly the mismatch" }
+    if ($unreadable.Count -eq 1 -and $unreadable[0] -eq 'blank') { Pass 'Confirm-Applied counts an unreadable value separately, not as a failure' }
+    else { Fail "Confirm-Applied recorded $($unreadable.Count) unreadable, expected exactly the blank - conflating the two sends people chasing changes that were fine" }
+}
+
+# the check is worthless if it sits before the change it is checking
+$netText17 = Get-Content $netPath17 -Raw
+$iApply17 = $netText17.IndexOf('=== AFTER ===')
+$iVerify17 = $netText17.IndexOf('=== VERIFY')
+if ($iApply17 -ge 0 -and $iVerify17 -gt $iApply17) { Pass '01 reads its values back AFTER applying them' }
+else { Fail "01's verify block is not after the changes (after=$iApply17 verify=$iVerify17)" }
+
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green
 exit 0
