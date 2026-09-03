@@ -41,9 +41,20 @@ Live evidence, read off this machine rather than out of the script:
     ok  rsc = enabled
     ok  NetworkThrottlingIndex = 4294967295
     ok  DNS = 1.1.1.1, 1.0.0.1
-    UNREADABLE AllowComputerToTurnOffDevice   (unelevated; 01 itself runs elevated)
+    UNREADABLE AllowComputerToTurnOffDevice   (unelevated harness only)
     -> notApplied=0 unreadable=1
     02: minimum processor state now 0%, which is what 02 sets.
+
+Then read again ELEVATED, which is how `01` actually runs:
+
+    elevated=True
+    AllowComputerToTurnOffDevice = [Disabled]      <- 01's target
+
+So all SIX Tier A values are confirmed against the live machine, and the single
+UNREADABLE was an artefact of the harness rather than anything about the tune.
+That is the distinction the checker now makes for the user too - it reported
+"could not read either way" rather than "did not apply", which was the truthful
+answer at the privilege level it had.
 
 - `tests/preflight.ps1` stage 17 lifts `Confirm-Applied` and CALLS it with a
   match, a mismatch and a blank, asserting the blank lands in `unreadable` and
