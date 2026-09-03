@@ -61,6 +61,17 @@ handing its own detector a planted bad path and failing if it matches nothing.
 paths" was not true - `install.ps1`'s help example was one. Stage 14 is why that
 claim is now checked by a gate instead of by a grep somebody remembers to run.
 
+**And the serious one, later the same session: a net-tune revert file would have
+left this machine with NO antivirus.** `surfshark-av-off-revert.ps1` started the
+Surfshark service and then disabled Defender on the next line, unconditionally -
+and Surfshark has since been uninstalled, so that start could only fail. Fixed in
+the file AND in the generator that rewrites it, and gate stage 6 now refuses any
+revert that stands real-time protection down outside an `if`, that invokes
+anything but known-safe restore commands, or that restores nothing at all. 50 ok,
+exit 0; proven red against the real pre-fix file. No revert is ever executed by
+the gate. Detail in `net-tune/handoff.md`, which remains the only record - that
+folder has no git remote and no history.
+
 **Follow-on the same session: net-tune got its own gate.** Eight of its ELEVATED
 scripts had the guard-that-can-never-fire - `Split-Path -Parent
 $MyInvocation.MyCommand.Path` with the emptiness check after it - and every one
