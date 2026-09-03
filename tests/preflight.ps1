@@ -38,6 +38,11 @@
      13. LOCALE: 01's Get-TcpGlobal is CALLED with synthetic German netsh output
          and must throw naming the cause; 02's Get-MinState is checked statically
          for the same guard ahead of its ToInt32.
+     14. No file hardcodes an absolute machine-specific path (C:\Users\..., a
+         C:\tools\... install root). Those break the moment the folder moves and
+         resolve somewhere unexpected on a stranger's box. The detector is then
+         handed a PLANTED bad path, because a scanner with no planted positive
+         reports clean forever.
 #>
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -334,6 +339,39 @@ if (-not $minFn) {
     if ($throws -and $guardFirst) { Pass 'Get-MinState guards a localized powercfg before ToInt32, naming the cause' }
     else { Fail "Get-MinState has no locale guard ahead of ToInt32 (throws=$throws, guardFirst=$guardFirst) - a non-English Windows gets 'Index was out of range'" }
 }
+
+# 14. no hardcoded absolute machine path. Every path must be derived at runtime
+#     ($PSScriptRoot, $env:...), so a moved folder cannot leave a script pointing
+#     at somewhere that no longer exists - or, worse, at somewhere that does.
+function Get-HardcodedPathHit {
+    param([string]$Text)
+    if (-not $Text) { return @() }
+    # A drive letter, then \Users\ or \tools\. C:\Windows and C:\Program Files are
+    # genuine fixed system locations and are not machine-specific.
+    @([regex]::Matches($Text, '(?i)\b[a-z]:\\(users|tools)\\[^\s''"<>|)\]]*') | ForEach-Object { $_.Value })
+}
+
+$pathHits = 0
+$scanned14 = 0
+foreach ($f in Get-ChildItem $repo -Recurse -File -Include '*.ps1', '*.cmd' |
+         Where-Object { $_.FullName -notmatch '\\(\.git|tests)\\' -and $_.Name -notlike '*-revert.ps1' }) {
+    $scanned14++
+    $n = 0
+    foreach ($line in (Get-Content $f.FullName)) {
+        $n++
+        foreach ($hit in (Get-HardcodedPathHit $line)) {
+            $pathHits++
+            Fail "hardcoded absolute path in $($f.Name):$n -> $hit"
+        }
+    }
+}
+if ($scanned14 -eq 0) { Fail 'stage 14 scanned no files - the check proved nothing' }
+elseif ($pathHits -eq 0) { Pass "no hardcoded absolute machine paths ($scanned14 files scanned)" }
+
+# and prove the detector actually detects, or the clean result above means nothing
+$planted = 'C:' + '\Users\someone\Desktop\thing.ps1'
+if (@(Get-HardcodedPathHit $planted).Count) { Pass 'hardcoded-path detector catches a planted path' }
+else { Fail 'hardcoded-path detector matched nothing on a planted bad path - stage 14 proved nothing' }
 
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green

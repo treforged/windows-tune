@@ -29,7 +29,7 @@
     "pipe the download into PowerShell" form - see NOTICE.md.
 
 .EXAMPLE
-    .\install.ps1 -FromZip .\windows-tune.zip -Path C:\tools\windows-tune
+    .\install.ps1 -FromZip .\windows-tune.zip -Path $env:LOCALAPPDATA\windows-tune-test
 #>
 [CmdletBinding()]
 param(

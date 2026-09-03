@@ -5,6 +5,62 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-09-02 - dead paths after the folder move, and a gate so they cannot come back
+
+Gus also owns **net-tune** from today (Sam, 2026-09-02) - same domain, same
+audience, same "runs on other people's machines" risk. net-tune is NOT a git
+repo, so its fixes live only on disk; this file is the record.
+
+Mona's `claudecontext/sweep_dead_paths.py` found four hardcoded paths across the
+two folders, all left behind when everything moved one level down into
+`Desktop\TRE-Forged\`. All four are now derived at runtime; none was replaced
+with a new absolute path, because that just breaks again on the next move.
+
+- `net-tune/remove-excl.ps1` wrote its report to `Desktop\net-tune\` - now
+  `Join-Path $root 'excl-after.txt'`.
+- `net-tune/test-05.ps1` ran `Desktop\windows-tune\scripts\05-defender-handover.ps1`
+  and wrote beside it - now the sibling folder of `$PSScriptRoot`, and it
+  **throws naming the path it looked for** if that script is not there. It
+  elevates and changes Defender settings, so a wrong target must fail loudly
+  rather than quietly do nothing.
+- `windows-tune/install.ps1:32` pointed at `C:\tools\windows-tune`. This one was
+  **documentation, not code** - an `.EXAMPLE` line in the comment-based help -
+  but it told a stranger to install into a folder that does not exist and needs
+  admin to create. Now `$env:LOCALAPPDATA\windows-tune-test`.
+- Known false positive, left alone: `net-tune/surfshark-uninstall.ps1:53` checks
+  for `C:\Program Files\Surfshark`, whose ABSENCE is the desired state.
+
+**The guard-before-the-call rule.** `Split-Path` and `Join-Path` THROW on an
+empty string, so `$root = Split-Path -Parent $x` followed by `if (-not $root)`
+is defensive-looking code that can never fire - the line above it already threw,
+on the empty/missing case, which is the degrade path least likely to be
+exercised and most likely to hit a stranger. Both net-tune scripts check
+`$PSScriptRoot`, then `$MyInvocation.MyCommand.Path`, **before** calling
+`Split-Path` on either, and throw a sentence a human can act on.
+
+**`tests/preflight.ps1` stage 14** now fails the build on any absolute
+machine-specific path (`X:\Users\...`, `X:\tools\...`) in a repo `.ps1`/`.cmd`.
+`C:\Windows` and `C:\Program Files` are real fixed locations and are not flagged.
+A scanner with nothing planted for it reports clean forever, so the stage ends by
+handing its own detector a planted bad path and failing if it matches nothing.
+
+- Gate: **57 ok, exit 0**, unelevated.
+- Proven red on purpose: a dead `Desktop\windows-tune\planted.log` added to a
+  scratch copy of `01-network-tune.ps1` gives
+  `FAIL hardcoded absolute path in 01-network-tune.ps1:303`, exit 1.
+- net-tune evidence (neither script can run end to end here - one strips Defender
+  exclusions, the other elevates): `test-05.ps1` run against a stand-in `05` in a
+  temp sibling layout reached it with `Repair=True AddDevExclusions=True` and
+  wrote `test-05.out` beside itself; with the sibling removed it threw naming the
+  path it wanted. `remove-excl.ps1` with the Defender cmdlets stubbed resolved its
+  output to its own folder. Both throw the folder-resolution message when their
+  body is run with no script file behind it.
+- The sweep now reports **0 dead paths in either folder**.
+
+**Correction to the migration note below:** "the repo hard-codes NO absolute
+paths" was not true - `install.ps1`'s help example was one. Stage 14 is why that
+claim is now checked by a gate instead of by a grep somebody remembers to run.
+
 ## 2026-09-02 - queue 1 dropped; the second-machine class tested WITHOUT one
 
 Tre: *"remove that from to do list. im not going back to that pc any time soon.
@@ -442,10 +498,11 @@ by anything in this repo.
 **For the Desktop folder migration (checked 2026-09-02, so it is not
 rediscovered): this desk is SAFE TO MOVE, but NOT safe to RENAME.**
 
-- The repo hard-codes NO absolute paths. Every path is derived at runtime from
-  `$PSScriptRoot` / `Split-Path -Parent` - in the scripts, the menu, the
-  installer and `tests/preflight.ps1`. Verified by grepping all `.ps1`, `.cmd`
-  and `.json` for `C:\Users` - zero hits outside this handoff file.
+- The repo hard-codes no absolute paths, and **`tests/preflight.ps1` stage 14
+  now enforces it** rather than leaving it to a grep somebody remembers to run.
+  Every path is derived at runtime from `$PSScriptRoot` / `Split-Path -Parent`.
+  (The original claim here was wrong: `install.ps1`'s help example carried
+  `C:\tools\windows-tune` until 2026-09-02.)
 - **No scheduled task references windows-tune** (`schtasks /query /fo csv /v`
   filtered: 0 hits). Nothing to repoint there.
 - Only three files outside the repo mention it, and all three are PROSE, not
@@ -494,32 +551,29 @@ rediscovered): this desk is SAFE TO MOVE, but NOT safe to RENAME.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-02 11:34 by handoff_hook. Everything below this heading is
+_Written 2026-09-02 13:04 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (4 file(s)):**
+- **Uncommitted (1 file(s)):**
 
 ```
 M handoff.md
- M scripts/01-network-tune.ps1
- M scripts/02-power-tune.ps1
- M tests/preflight.ps1
 ```
 
 - **Recent commits:**
 
 ```
+bac4e7b docs(handoff): migration note - safe to MOVE, not safe to RENAME
+c003498 fix(01,02): a non-English Windows got a .NET error naming nothing
 c0ca3d4 feat(04): compare DISM's own before/after verdict instead of trusting its success line
 74370b2 docs(handoff): option 5 pressed - queue 4 closed, and DISM contradicted its own success
 6cf7bbb fix(menu): option 5's warning described /ResetBase, which the menu cannot pass
 bd94ab6 docs(handoff): refresh the auto-snapshot block
 a62627a docs(handoff): carry the two unanswered offers forward before this duplicate tab closes
 86d6302 docs(handoff): correct it - Surfshark is uninstalled; 14 orphaned WSC keys remain
-2a670f9 docs(handoff): option 6 pressed elevated - refuses without -Name; only option 5 left
-e0f557b docs(handoff): the menu pressed ELEVATED - options 3 and 4 report "already at target"
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
