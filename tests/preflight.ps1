@@ -489,6 +489,75 @@ $iVerify17 = $netText17.IndexOf('=== VERIFY')
 if ($iApply17 -ge 0 -and $iVerify17 -gt $iApply17) { Pass '01 reads its values back AFTER applying them' }
 else { Fail "01's verify block is not after the changes (after=$iApply17 verify=$iVerify17)" }
 
+# --- stage 18: the two revert checks, pressed until each one goes RED ---------
+# These read the LIVE machine, so a clean checkout has no revert files and they
+# would prove nothing. Drive them against fixture folders instead: four planted
+# pairs, each one aimed at a different verdict, so a check that can no longer
+# fail is caught here rather than trusted forever.
+#
+# The fixtures are PARSED, never run. Both scripts read a tune and its revert
+# through the PowerShell AST and change nothing, which is what makes it safe to
+# plant a Set-Service line and read the real service beside it.
+$drift18 = Join-Path $repo 'tests\revert-drift.ps1'
+$cred18  = Join-Path $repo 'tests\revert-credibility.ps1'
+
+$svcActual18 = ''
+$svc18 = Get-Service -Name 'Winmgmt' -ErrorAction SilentlyContinue
+if ($svc18) { $svcActual18 = $svc18.StartType.ToString() }
+
+if (-not $svcActual18) {
+    Fail 'Winmgmt start type could not be read, so the revert checks could not be pressed at all'
+} else {
+    $svcOther18 = 'Manual'
+    if ($svcActual18 -eq 'Manual') { $svcOther18 = 'Disabled' }
+
+    $tmp18 = Join-Path $env:TEMP ('wt-revert-' + [guid]::NewGuid().ToString('N'))
+    try {
+        # name => @(tune line, revert line); $null means the folder stays empty
+        $fixtures18 = [ordered]@{
+            'healthy' = @("Set-Service 'Winmgmt' -StartupType $svcActual18", "Set-Service 'Winmgmt' -StartupType $svcOther18")
+            'noop'    = @("Set-Service 'Winmgmt' -StartupType $svcActual18", "Set-Service 'Winmgmt' -StartupType $svcActual18")
+            'gone'    = @("Set-Service 'WindowsTuneNoSuchService' -StartupType Automatic", "Set-Service 'WindowsTuneNoSuchService' -StartupType Manual")
+            'empty'   = $null
+        }
+        foreach ($name18 in $fixtures18.Keys) {
+            $dir18 = Join-Path $tmp18 $name18
+            New-Item -ItemType Directory -Path $dir18 -Force | Out-Null
+            $pair18 = $fixtures18[$name18]
+            if ($pair18) {
+                Set-Content -LiteralPath (Join-Path $dir18 'svc-probe.ps1')        -Value $pair18[0] -Encoding ascii
+                Set-Content -LiteralPath (Join-Path $dir18 'svc-probe-revert.ps1') -Value $pair18[1] -Encoding ascii
+            }
+        }
+
+        # what each fixture must produce, and WHY - the why is the part that
+        # stops someone "fixing" a red by loosening the expectation.
+        #   script | fixture | expected exit | what it proves
+        $expect18 = @(
+            @{ s = $drift18; f = 'healthy'; x = 0; w = 'a revert naming a value the machine does not hold reads as healthy, not as a failure' }
+            @{ s = $cred18;  f = 'healthy'; x = 0; w = 'a revert that would undo what the tune set is credible' }
+            @{ s = $drift18; f = 'noop';    x = 0; w = 'a revert already matching the machine is reported, not failed - only a human knows why' }
+            @{ s = $cred18;  f = 'noop';    x = 1; w = 'RED: a revert restoring the value the tune SETS undoes nothing' }
+            @{ s = $drift18; f = 'gone';    x = 1; w = 'RED: a claim whose current value cannot be read at all is unverifiable' }
+            @{ s = $cred18;  f = 'gone';    x = 0; w = 'a setting that no longer exists is reported as MISSING and left to the drift check to fail' }
+            @{ s = $drift18; f = 'empty';   x = 1; w = 'RED: no claims read means the check proved nothing' }
+            @{ s = $cred18;  f = 'empty';   x = 1; w = 'RED: no tune targets read means the check proved nothing' }
+        )
+        foreach ($e18 in $expect18) {
+            $leaf18 = Split-Path -Leaf $e18.s
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $e18.s -ScriptsDir (Join-Path $tmp18 $e18.f) *> $null
+            $got18 = $LASTEXITCODE
+            if ($got18 -eq $e18.x) {
+                Pass ("{0} on the '{1}' fixture -> exit {2}: {3}" -f $leaf18, $e18.f, $got18, $e18.w)
+            } else {
+                Fail ("{0} on the '{1}' fixture exited {2}, expected {3} - {4}" -f $leaf18, $e18.f, $got18, $e18.x, $e18.w)
+            }
+        }
+    } finally {
+        Remove-Item -LiteralPath $tmp18 -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green
 exit 0
