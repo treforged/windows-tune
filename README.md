@@ -124,7 +124,7 @@ a `*-revert.ps1` beside themselves first.
 | `01-network-tune.ps1` | Restores auto-tuning, RSS, RSC and NIC offloads; disables NIC power saving. Tier A applies live; Tier B stages until `-BounceAdapter` or reboot. |
 | `02-power-tune.ps1` | Minimum processor state → 0%, ceiling untouched. |
 | `03-storage-report.ps1` | Read-only. Largest folders per drive; every Steam game with **real** last-played dates; Epic/Xbox by size. |
-| `04-component-cleanup.ps1` | True WinSxS size, then reclaims superseded packages. `/ResetBase` opt-in only. |
+| `04-component-cleanup.ps1` | Checks the component store's HEALTH first and stops with repair instructions if it is damaged. Then true WinSxS size, and reclaims superseded packages. `/ResetBase` opt-in only. |
 | `05-defender-handover.ps1` | Diagnoses the "no AV at all" state; repairs what a script safely can; adds developer exclusions once protection is genuinely on, and **verifies they were actually stored**. |
 | `06-remove-third-party-av.ps1` | Fully uninstalls an MSI-based third-party AV and waits for Windows to hand protection back to Defender. Usually needs no reboot and no Tamper Protection toggle. |
 
@@ -168,6 +168,13 @@ defaults.
   boost-CPU-specific (Zen 2+, Intel Turbo).
 - `01` and `02` are reversible and low-risk. `04` is irreversible in the sense
   that reclaimed packages are gone, though nothing you use is removed.
+- `04` will refuse to run on a PC whose component store is already damaged, and
+  will tell you to run `DISM /Online /Cleanup-Image /RestoreHealth` first. A
+  cleanup cannot repair a damaged store, and DISM prints
+  `The operation completed successfully` either way - so without that check you
+  would be told it worked and never learn your PC needs attention. A damaged
+  store also blocks adding or removing Windows features and can make Windows
+  updates fail in ways that look like something else entirely.
 - `05` and `06` change security posture. Read them before running them.
 - `06` uninstalls software. Confirm you do not rely on the product first -
   many AV suites bundle a VPN or password manager you may still want.
