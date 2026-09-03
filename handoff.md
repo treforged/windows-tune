@@ -837,7 +837,7 @@ rediscovered): this desk is SAFE TO MOVE, but NOT safe to RENAME.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 15:27 by handoff_hook. Everything below this heading is
+_Written 2026-09-03 16:24 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -848,6 +848,7 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+9a96425 docs(handoff): record why megabytes cannot measure context, before this desk closes
 08a5751 docs(handoff): the sixth Tier A value reads Disabled when elevated, as 01 runs
 19e3049 chore(handoff): refresh the machine-written auto-snapshot
 724c330 feat(01,02): read the values back off the machine instead of printing an after-state
@@ -855,7 +856,6 @@ f37df40 docs(handoff): RestoreHealth cleared the flag and moved the fault, it di
 a7cca72 test(preflight): assert the sandbox can never write into the working tree
 fe86156 docs(handoff): the disk clears option 5 of causing the store damage
 dbcf9b1 docs(readme): say that 04 checks store health before it cleans
-04ed2e3 feat(04,tests): refuse to clean a component store that is already damaged
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
