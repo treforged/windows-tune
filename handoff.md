@@ -938,29 +938,25 @@ acceptably and assert TABLES unacceptably.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-03 16:58 by handoff_hook. Everything below this heading is
+_Written 2026-09-15 09:42 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
-- **vs upstream:** 0 ahead, 0 behind
+- **vs upstream:** 2 ahead, 0 behind  <- UNPUSHED
 
-- **Uncommitted (1 file(s)):**
-
-```
-M handoff.md
-```
+- **Working tree:** clean
 
 - **Recent commits:**
 
 ```
+b7712f3 docs(handoff): record that the push is blocked by a dead github credential
+1567541 docs(handoff): re-verify the empty queue rather than trust the record
+231f317 docs(claude): a routing table, written by Vera at Sam's request
+34dae42 docs(handoff): close this desk with an empty queue and the state that proves it
 ba91bf5 docs(handoff): why net-tune's history stayed private and only its tests came over
 3589621 test(revert): prove a revert file would restore what was actually there
 875dd21 chore(handoff): refresh the auto-snapshot at the close of this desk
 9a96425 docs(handoff): record why megabytes cannot measure context, before this desk closes
-08a5751 docs(handoff): the sixth Tier A value reads Disabled when elevated, as 01 runs
-19e3049 chore(handoff): refresh the machine-written auto-snapshot
-724c330 feat(01,02): read the values back off the machine instead of printing an after-state
-f37df40 docs(handoff): RestoreHealth cleared the flag and moved the fault, it did not fix it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
