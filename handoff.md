@@ -5,6 +5,25 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-09-15 - resumed, re-verified, still empty
+
+Gus reopened this desk on Sam's dispatch and found nothing to do. Recorded so
+the next session does not repeat the check.
+
+- `ask list --owner Gus` returned **0 rows** against a store of 272, so the
+  reader works and the queue is genuinely clear - not a broken lookup.
+- `tests\preflight.ps1`: **83 ok, 0 FAIL, exit 0**, unelevated. The count is
+  identical to the 83 recorded at the 2026-09-03 close. A suite that shrinks
+  looks exactly like a suite that passes, so the COUNT is the check, not the
+  "all green" line.
+- Tree clean; `git rev-list --left-right --count origin/main...HEAD` = **0/0**.
+- Items 1 to 6 below are unchanged: one dropped with a reason, five closed.
+- Nothing was built, committed or pushed this session. An empty queue is an
+  answer, not a reason to invent work.
+- The two things still open are not this desk's: the damaged component store
+  (Tre has decided - do nothing now, in-place repair upgrade when he wants it),
+  and whether `forged-agents` goes public (never decided; stays private).
+
 ## 2026-09-03 - measuring context: megabytes cannot do it (machine-level, for Sam)
 
 Not a windows-tune change. Recorded here because this desk did the measurement
