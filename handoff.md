@@ -20,6 +20,18 @@ the next session does not repeat the check.
 - Items 1 to 6 below are unchanged: one dropped with a reason, five closed.
 - Nothing was built, committed or pushed this session. An empty queue is an
   answer, not a reason to invent work.
+- ⚠️ **THE COMMIT ABOVE IS LOCAL ONLY. `git push` FAILED, AND THE CAUSE IS
+  MACHINE-WIDE, NOT THIS REPO.** `gh auth status` reads *"The token in default
+  is invalid"* for account `treforged`, `credential.helper` is `manager`, and a
+  non-interactive `git credential fill` returns nothing at all - so there is no
+  stored credential to fall back on. **Every desk on this machine that tries to
+  push tonight will hit this**, and a public repo hides it: `ls-remote` still
+  works unauthenticated, so read checks look healthy. Only a PUSH fails.
+  Fix is a login, which is Tre's hands: `gh auth login -h github.com`. Once that
+  is done, `git push origin main` from this folder lands the commit; verify by
+  CONTENTS (`git grep "resumed, re-verified" origin/main`) and by
+  `git rev-list --left-right --count origin/main...HEAD` reading 0/0, never by
+  the push output.
 - The two things still open are not this desk's: the damaged component store
   (Tre has decided - do nothing now, in-place repair upgrade when he wants it),
   and whether `forged-agents` goes public (never decided; stays private).
