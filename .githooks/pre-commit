@@ -1,0 +1,37 @@
+#!/bin/sh
+# Refuse a commit from this repo that carries a credential.
+#
+# WHY HERE. This repo is PUBLIC, so a credential committed here is published
+# the moment it is pushed. A .gitignore IS A DEFAULT, NOT A GATE: `git add -f`,
+# an edit to the ignore file, or a new secret at an already-allowed path all end
+# with the material STAGED, which is where this looks.
+#
+# IT FAILS CLOSED. A missing node or a missing scanner is a REFUSAL, not a pass.
+# "I could not look" must never read as "I looked and it is clean".
+#
+# WHAT IT DOES NOT STOP: `git commit --no-verify`, and anyone who can edit this
+# file can delete it. Not a fixable property of a local hook. It stops the
+# accident, which is the failure mode that has actually happened here.
+#
+# UNDO: git config --unset core.hooksPath
+
+REPO=$(git rev-parse --show-toplevel)
+SCANNER="$REPO/scripts/secret-scan-staged.mjs"
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-commit REFUSED: node is not on PATH, so the secret scan could not run." >&2
+  echo "  This is a refusal, not a pass." >&2
+  exit 1
+fi
+
+if [ ! -f "$SCANNER" ]; then
+  echo "pre-commit REFUSED: scanner not found at $SCANNER" >&2
+  echo "  A missing guard is not a clean tree." >&2
+  exit 1
+fi
+
+if ! node "$SCANNER" --repo "$REPO"; then
+  echo "pre-commit REFUSED by the secret scan." >&2
+  exit 1
+fi
+exit 0
