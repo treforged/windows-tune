@@ -5,6 +5,22 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-09-24 - tracked pre-commit secret guard (ask f37c1187), queue empty again
+
+- `.githooks/pre-commit` plus `scripts/secret-scan-staged.mjs` and
+  `scripts/secret-scan.mjs`. The scanners are blob-identical to
+  tre-forged-conductor 6097b08. The hook is blob-identical to forged-agents
+  ed8f0fe (public WHY-HERE header). `core.hooksPath=.githooks` is set in this
+  clone. The same install went into net-tune (1587adf, 523f167).
+- Proven red: a runtime-built OpenRouter key was REFUSED at exit 1. Green: the
+  hook passed with the probe unstaged and on both commits. Preflight passed
+  (exit 0).
+- Commits 8ad0be4 and 17dd6cf. 17dd6cf restores the exec bit: `git commit -- <paths>`
+  commits the WORKING-TREE mode, which is 644 on Windows, and throws away an
+  `update-index --chmod=+x`. Verified on origin as 100755 plus the blob.
+- A fresh clone needs `git config core.hooksPath .githooks` before the guard runs.
+  Undo: `git config --unset core.hooksPath`.
+
 ## 2026-09-15 - resumed, re-verified, still empty
 
 Gus reopened this desk on Sam's dispatch and found nothing to do. Recorded so
