@@ -987,6 +987,12 @@ acceptably and assert TABLES unacceptably.
   not the cause. The WorkerW layer is hidden by build 26200 or another
   component. Backup: Desktop\windhawk-backup-20261004-190653.reg. Probe kit:
   Desktop\WindhawkProbe. head-parallax stays a fullscreen window.
+- 19:10 Tre: "the first time it almost cause my pc to crash". The likely
+  cause is the WorkerW tests themselves: each one put a full-screen window from
+  another process inside Explorer's desktop window, so a stalled test window
+  can freeze the desktop. RULE FOR THIS DESK: no more reparenting tests on
+  Tre's live desktop. None are running now (no probe processes, explorer
+  Responding=True).
 - (resolved) PAUSED ON 5h CAP at 17:45. FIRST ON RESUME: send Sam the report (the
   SendMessage was blocked by the cap, so Sam has NOT heard): 357987ae blocked on
   the C270 being unplugged, 0973f48b done with the evidence above. Then start
