@@ -980,6 +980,13 @@ acceptably and assert TABLES unacceptably.
   wallpaper needs an .exe and uses the same reparent method, so it is not a sure
   fix. The slice STOPPED here. Restart it only with research into the 26200
   desktop layer, or test with Windhawk's explorer mods off (Tre's call).
+- 19:07 Windhawk probe (Sam approved, Tre pressed UAC): magenta 0/20 with the
+  mods on AND 0/20 with translucent-windows + file-explorer-styler unloaded
+  from explorer (module list empty). Sampler positive control 20/20. Both mods
+  restored and read back (Disabled=0, DLLs loaded again). VERDICT: Windhawk is
+  not the cause. The WorkerW layer is hidden by build 26200 or another
+  component. Backup: Desktop\windhawk-backup-20261004-190653.reg. Probe kit:
+  Desktop\WindhawkProbe. head-parallax stays a fullscreen window.
 - (resolved) PAUSED ON 5h CAP at 17:45. FIRST ON RESUME: send Sam the report (the
   SendMessage was blocked by the cap, so Sam has NOT heard): 357987ae blocked on
   the C270 being unplugged, 0973f48b done with the evidence above. Then start
