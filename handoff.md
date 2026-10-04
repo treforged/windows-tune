@@ -951,28 +951,41 @@ eight expectations backwards - it thought the drift check should fail on a no-op
 revert. Scored in `~/.claude/ollama/playbook.md`: this tier drafts harness SHAPE
 acceptably and assert TABLES unacceptably.
 
+
+## 2026-10-04 - head-parallax lab (ask from Sam, Tre's reel)
+
+- `labs/head-parallax/head_parallax.py`: webcam head tracking + off-axis box.
+  Self-test 4 checks green, proven red by flipping the projection sign. Render
+  of two eye positions differs by 139,209 px. Not in the menu.
+- Live camera NOT proven: Logi C270 is unplugged ("Unknown"). Next step when it
+  is plugged in: `--windowed --max-seconds 8`, read `faces=` > 0.
+- Wallpaper-behind-icons (Lively / Wallpaper Engine) not started; needs the full
+  third-party review first.
+- Next ask queued by Sam: 0973f48b, Windhawk "Mod tasks in progress" popup with
+  an unreadable white list.
+
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-15 09:42 by handoff_hook. Everything below this heading is
+_Written 2026-09-24 05:32 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
-- **vs upstream:** 2 ahead, 0 behind  <- UNPUSHED
+- **vs upstream:** 0 ahead, 0 behind
 
 - **Working tree:** clean
 
 - **Recent commits:**
 
 ```
+f2d6a09 docs(handoff): secret guard installed, queue empty again
+17dd6cf fix(security): pre-commit hook carries the exec bit
+8ad0be4 chore(security): tracked pre-commit secret guard
+319920d chore(handoff): commit the auto-snapshot the closing session left behind
 b7712f3 docs(handoff): record that the push is blocked by a dead github credential
 1567541 docs(handoff): re-verify the empty queue rather than trust the record
 231f317 docs(claude): a routing table, written by Vera at Sam's request
 34dae42 docs(handoff): close this desk with an empty queue and the state that proves it
-ba91bf5 docs(handoff): why net-tune's history stayed private and only its tests came over
-3589621 test(revert): prove a revert file would restore what was actually there
-875dd21 chore(handoff): refresh the auto-snapshot at the close of this desk
-9a96425 docs(handoff): record why megabytes cannot measure context, before this desk closes
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
