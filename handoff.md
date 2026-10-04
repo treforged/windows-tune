@@ -993,6 +993,7 @@ acceptably and assert TABLES unacceptably.
   can freeze the desktop. RULE FOR THIS DESK: no more reparenting tests on
   Tre's live desktop. None are running now (no probe processes, explorer
   Responding=True).
+- 19:28 face tracking PROVEN with Tre in view: 138/143 frames had a face, 14.9 fps. Ask 357987ae closed.
 - (resolved) PAUSED ON 5h CAP at 17:45. FIRST ON RESUME: send Sam the report (the
   SendMessage was blocked by the cap, so Sam has NOT heard): 357987ae blocked on
   the C270 being unplugged, 0973f48b done with the evidence above. Then start
@@ -1001,25 +1002,29 @@ acceptably and assert TABLES unacceptably.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 18:53 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 19:27 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Working tree:** clean
+- **Uncommitted (1 file(s)):**
+
+```
+M handoff.md
+```
 
 - **Recent commits:**
 
 ```
+75a34f7 docs(handoff): stop live-desktop reparent tests after a near freeze
+e52d7e3 docs(handoff): Windhawk probe rules Windhawk out as the wallpaper blocker
+59beec3 docs(handoff): WorkerW layer is invisible on this machine, wallpaper slice stopped
 fe8e800 docs(labs): record that a WorkerW wallpaper host fails on build 26200
 56dd6c7 fix(labs): equalise dark webcam frames before face detection
 61b0a25 docs(handoff): Windhawk fix done, paused on cap, Sam report pending
 477640b feat(labs): webcam head-parallax prototype from Tre's reel
 f2d6a09 docs(handoff): secret guard installed, queue empty again
-17dd6cf fix(security): pre-commit hook carries the exec bit
-8ad0be4 chore(security): tracked pre-commit secret guard
-319920d chore(handoff): commit the auto-snapshot the closing session left behind
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
