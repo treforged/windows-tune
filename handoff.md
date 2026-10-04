@@ -961,8 +961,13 @@ acceptably and assert TABLES unacceptably.
   is plugged in: `--windowed --max-seconds 8`, read `faces=` > 0.
 - Wallpaper-behind-icons (Lively / Wallpaper Engine) not started; needs the full
   third-party review first.
-- Next ask queued by Sam: 0973f48b, Windhawk "Mod tasks in progress" popup with
-  an unreadable white list.
+- 0973f48b Windhawk popup: DONE 17:42. ModTasksDialogDelay 2000 -> 30000 and
+  windhawk.exe added to translucent-windows Exclude (Desktop\Fix-WindhawkPopup.ps1,
+  read back). Undo: reg import Desktop\windhawk-backup-20261004-174208.reg.
+- PAUSED ON 5h CAP at 17:45. FIRST ON RESUME: send Sam the report (the
+  SendMessage was blocked by the cap, so Sam has NOT heard): 357987ae blocked on
+  the C270 being unplugged, 0973f48b done with the evidence above. Then start
+  ask 3f7f7059 (another reel, owner Gus).
 
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
