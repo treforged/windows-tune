@@ -388,6 +388,7 @@ def main():
             gray_full = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             # Detect on half-size image for speed
             gray = cv2.resize(gray_full, (gray_full.shape[1] // 2, gray_full.shape[0] // 2))
+            gray = cv2.equalizeHist(gray)  # dark rooms: C270 frames measured at mean 10.9/255
 
             head = detect_head(gray, detector, None)
             frames += 1
