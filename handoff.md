@@ -974,6 +974,12 @@ acceptably and assert TABLES unacceptably.
   The code is parked outside the repo (scratchpad/parked). Next try: Wallpaper
   Engine "application" wallpaper. WE is installed (G:\SteamLibrary) and set to
   autostart, but it was not running.
+- 19:00 a plain tkinter (GDI) magenta window parented into WorkerW ALSO showed
+  0 visible pixels, so OpenCV is not the cause: the WorkerW layer is not visible
+  on this machine (build 26200, Windhawk active). A Wallpaper Engine application
+  wallpaper needs an .exe and uses the same reparent method, so it is not a sure
+  fix. The slice STOPPED here. Restart it only with research into the 26200
+  desktop layer, or test with Windhawk's explorer mods off (Tre's call).
 - (resolved) PAUSED ON 5h CAP at 17:45. FIRST ON RESUME: send Sam the report (the
   SendMessage was blocked by the cap, so Sam has NOT heard): 357987ae blocked on
   the C270 being unplugged, 0973f48b done with the evidence above. Then start
@@ -982,25 +988,25 @@ acceptably and assert TABLES unacceptably.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 17:44 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 18:53 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
-- **vs upstream:** 1 ahead, 0 behind  <- UNPUSHED
+- **vs upstream:** 0 ahead, 0 behind
 
 - **Working tree:** clean
 
 - **Recent commits:**
 
 ```
+fe8e800 docs(labs): record that a WorkerW wallpaper host fails on build 26200
+56dd6c7 fix(labs): equalise dark webcam frames before face detection
 61b0a25 docs(handoff): Windhawk fix done, paused on cap, Sam report pending
 477640b feat(labs): webcam head-parallax prototype from Tre's reel
 f2d6a09 docs(handoff): secret guard installed, queue empty again
 17dd6cf fix(security): pre-commit hook carries the exec bit
 8ad0be4 chore(security): tracked pre-commit secret guard
 319920d chore(handoff): commit the auto-snapshot the closing session left behind
-b7712f3 docs(handoff): record that the push is blocked by a dead github credential
-1567541 docs(handoff): re-verify the empty queue rather than trust the record
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
