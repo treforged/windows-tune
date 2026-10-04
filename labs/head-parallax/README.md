@@ -34,8 +34,12 @@ thread, no GPU. That is about 27 fps on one of 16 threads.
 
 - Not run against a live camera: the Logi C270 reads "Unknown" (unplugged), so
   only the exit-2 "cannot open camera" path is proven.
-- It is a fullscreen window, not the wallpaper behind the icons. Putting it
-  behind the desktop needs Lively or Wallpaper Engine, which needs a security
-  review first.
+- It is a fullscreen window, not the wallpaper behind the icons. A ctypes
+  WorkerW host (the Lively method) was tried on build 26200 on 2026-10-04 and
+  did NOT work. The window attached as a visible child of WorkerW, and also of
+  Progman both below and above SHELLDLL_DefView, but a magenta test frame showed
+  0 visible pixels on the desktop in all 3 placements. Wallpaper Engine is
+  already installed here (its "application" wallpaper type is the likely route),
+  so that route needs no new install.
 - Haar tracking is jittery in low light. MediaPipe would be smoother but needs a
   model download.
