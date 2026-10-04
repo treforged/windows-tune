@@ -994,6 +994,11 @@ acceptably and assert TABLES unacceptably.
   Tre's live desktop. None are running now (no probe processes, explorer
   Responding=True).
 - 19:28 face tracking PROVEN with Tre in view: 138/143 frames had a face, 14.9 fps. Ask 357987ae closed.
+- 19:55 Edge uninstall (ask a83ae35f): Tre pressed UAC, and Edge's setup.exe
+  --force-uninstall exited 93 (refused, US region). Nothing changed, WebView2
+  intact. Script: Desktop\Uninstall-Edge.ps1. Profile snapshot:
+  Desktop\Edge-profile-backup-20261004. The remaining supported route is a
+  temporary EEA region switch, which waits on Tre's yes.
 - (resolved) PAUSED ON 5h CAP at 17:45. FIRST ON RESUME: send Sam the report (the
   SendMessage was blocked by the cap, so Sam has NOT heard): 357987ae blocked on
   the C270 being unplugged, 0973f48b done with the evidence above. Then start
