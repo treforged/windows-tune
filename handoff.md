@@ -964,7 +964,12 @@ acceptably and assert TABLES unacceptably.
 - 0973f48b Windhawk popup: DONE 17:42. ModTasksDialogDelay 2000 -> 30000 and
   windhawk.exe added to translucent-windows Exclude (Desktop\Fix-WindhawkPopup.ps1,
   read back). Undo: reg import Desktop\windhawk-backup-20261004-174208.reg.
-- PAUSED ON 5h CAP at 17:45. FIRST ON RESUME: send Sam the report (the
+- 18:45 live run on the C270: frames=116, fps=15.1, camera released, faces=0.
+  One test frame read mean brightness 10.9/255: the room was dark and the camera
+  showed a wall and a fan, with nobody in view. I added equalizeHist before
+  detection. The face path still needs one run with Tre in front of the camera,
+  in some light.
+- (resolved) PAUSED ON 5h CAP at 17:45. FIRST ON RESUME: send Sam the report (the
   SendMessage was blocked by the cap, so Sam has NOT heard): 357987ae blocked on
   the C270 being unplugged, 0973f48b done with the evidence above. Then start
   ask 3f7f7059 (another reel, owner Gus).
@@ -972,25 +977,25 @@ acceptably and assert TABLES unacceptably.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-09-24 05:32 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 17:44 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
-- **vs upstream:** 0 ahead, 0 behind
+- **vs upstream:** 1 ahead, 0 behind  <- UNPUSHED
 
 - **Working tree:** clean
 
 - **Recent commits:**
 
 ```
+61b0a25 docs(handoff): Windhawk fix done, paused on cap, Sam report pending
+477640b feat(labs): webcam head-parallax prototype from Tre's reel
 f2d6a09 docs(handoff): secret guard installed, queue empty again
 17dd6cf fix(security): pre-commit hook carries the exec bit
 8ad0be4 chore(security): tracked pre-commit secret guard
 319920d chore(handoff): commit the auto-snapshot the closing session left behind
 b7712f3 docs(handoff): record that the push is blocked by a dead github credential
 1567541 docs(handoff): re-verify the empty queue rather than trust the record
-231f317 docs(claude): a routing table, written by Vera at Sam's request
-34dae42 docs(handoff): close this desk with an empty queue and the state that proves it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
