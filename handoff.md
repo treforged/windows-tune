@@ -969,6 +969,11 @@ acceptably and assert TABLES unacceptably.
   showed a wall and a fan, with nobody in view. I added equalizeHist before
   detection. The face path still needs one run with Tre in front of the camera,
   in some light.
+- 18:50 wallpaper-behind-icons: our own ctypes WorkerW host FAILED on build
+  26200 (3 placements, magenta test, 0 visible pixels; details in the lab README).
+  The code is parked outside the repo (scratchpad/parked). Next try: Wallpaper
+  Engine "application" wallpaper. WE is installed (G:\SteamLibrary) and set to
+  autostart, but it was not running.
 - (resolved) PAUSED ON 5h CAP at 17:45. FIRST ON RESUME: send Sam the report (the
   SendMessage was blocked by the cap, so Sam has NOT heard): 357987ae blocked on
   the C270 being unplugged, 0973f48b done with the evidence above. Then start
