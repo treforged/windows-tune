@@ -1010,7 +1010,7 @@ acceptably and assert TABLES unacceptably.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 19:49 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 20:31 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1021,14 +1021,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+063dcca docs(handoff): Edge kept but quieted by two policies
+bf072a7 docs(handoff): Edge uninstaller refused with exit 93, nothing changed
+5c0e2e2 docs(handoff): Edge uninstaller refused with exit 93, nothing changed
 cfb311f docs(handoff): live face tracking proven, 138/143 frames
 75a34f7 docs(handoff): stop live-desktop reparent tests after a near freeze
 e52d7e3 docs(handoff): Windhawk probe rules Windhawk out as the wallpaper blocker
 59beec3 docs(handoff): WorkerW layer is invisible on this machine, wallpaper slice stopped
 fe8e800 docs(labs): record that a WorkerW wallpaper host fails on build 26200
-56dd6c7 fix(labs): equalise dark webcam frames before face detection
-61b0a25 docs(handoff): Windhawk fix done, paused on cap, Sam report pending
-477640b feat(labs): webcam head-parallax prototype from Tre's reel
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
