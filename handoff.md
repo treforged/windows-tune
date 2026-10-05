@@ -999,6 +999,9 @@ acceptably and assert TABLES unacceptably.
   intact. Script: Desktop\Uninstall-Edge.ps1. Profile snapshot:
   Desktop\Edge-profile-backup-20261004. The remaining supported route is a
   temporary EEA region switch, which waits on Tre's yes.
+- 20:27 Edge STAYS (Tre). Made quiet instead: StartupBoostEnabled=0 and
+  BackgroundModeEnabled=0 policies, read back PASS. 0 msedge processes. Ask
+  a83ae35f closed. EdgeUpdate was left alone because it patches WebView2.
 - (resolved) PAUSED ON 5h CAP at 17:45. FIRST ON RESUME: send Sam the report (the
   SendMessage was blocked by the cap, so Sam has NOT heard): 357987ae blocked on
   the C270 being unplugged, 0973f48b done with the evidence above. Then start
