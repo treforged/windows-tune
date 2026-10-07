@@ -52,6 +52,14 @@ const VALUE_PATTERNS = [
   // minified token. No pattern for it would avoid crying wolf, so
   // MISTRAL_API_KEY is caught by the `-keys.` FILENAME rule and by .gitignore,
   // never by content. A reader who assumes otherwise trusts this past its reach.
+  // Stripe and ElevenLabs, added 2026-10-06 (Sam, ask 9284659b). A staged
+  // sk_live_ key committed CLEAN before this: Forgenta bills through Stripe and
+  // Ruby's desk calls ElevenLabs, so both are live on this machine. The
+  // underscore after `sk` is what separates these from the OpenAI rule above.
+  // Publishable keys (pk_) are public by design and deliberately not matched.
+  { name: "Stripe secret key", re: /\b[sr]k_(?:live|test)_[A-Za-z0-9]{20,}/ },
+  { name: "Stripe webhook secret", re: /\bwhsec_[A-Za-z0-9]{24,}/ },
+  { name: "ElevenLabs key", re: /\bsk_[a-f0-9]{48}\b/ },
   { name: "GitHub token", re: /\bgh[pousr]_[A-Za-z0-9]{30,}/ },
   { name: "Groq key", re: /\bgsk_[A-Za-z0-9]{30,}/ },
   { name: "Google API key", re: /\bAIza[0-9A-Za-z_-]{35}/ },
