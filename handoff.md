@@ -5,6 +5,16 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-10-07 - secret-scan refuses Stripe and ElevenLabs keys (ask af5686f3), queue empty
+
+- Ported the 3 rules from `~/.claude/bin/secret-scan` (Stripe secret/restricted,
+  Stripe webhook, ElevenLabs) and committed `scripts/secret-scan.test.mjs` beside
+  the scanner. Blob 08d33cc, identical to the canonical copy. Same port in net-tune.
+- Red: the new tests against the old scanner failed 1 of 15. Green: 15 of 15.
+  A staged runtime-built `sk_live_` probe was refused. Preflight exit 0.
+- Commits: windows-tune 131cec5, net-tune 9783b91. Both pushed; origin 0/0.
+- Run the tests with `node --test scripts/secret-scan.test.mjs`.
+
 ## 2026-09-24 - tracked pre-commit secret guard (ask f37c1187), queue empty again
 
 - `.githooks/pre-commit` plus `scripts/secret-scan-staged.mjs` and
@@ -1017,7 +1027,7 @@ acceptably and assert TABLES unacceptably.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 23:45 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 01:01 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1028,6 +1038,7 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+5d40052 docs(handoff): park at 5h cap, secret-scan port ask af5686f3 first up
 ff76469 chore(handoff): auto-snapshot at heartbeat close
 53dd1a0 chore(handoff): auto-snapshot at close
 063dcca docs(handoff): Edge kept but quieted by two policies
@@ -1035,7 +1046,6 @@ bf072a7 docs(handoff): Edge uninstaller refused with exit 93, nothing changed
 5c0e2e2 docs(handoff): Edge uninstaller refused with exit 93, nothing changed
 cfb311f docs(handoff): live face tracking proven, 138/143 frames
 75a34f7 docs(handoff): stop live-desktop reparent tests after a near freeze
-e52d7e3 docs(handoff): Windhawk probe rules Windhawk out as the wallpaper blocker
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
