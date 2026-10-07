@@ -1007,10 +1007,17 @@ acceptably and assert TABLES unacceptably.
   the C270 being unplugged, 0973f48b done with the evidence above. Then start
   ask 3f7f7059 (another reel, owner Gus).
 
+## 2026-10-07 01:00 - parked at the 5h cap, one ask open
+
+- Open: ask `af5686f3` - port the 3 Stripe/ElevenLabs patterns and 2 tests from
+  `~/.claude/bin/secret-scan/` into `scripts/secret-scan.mjs` (here and net-tune),
+  run `node --test`, prove red, commit. NOT started. First up next session.
+- Parked because the 5h window read 97% of the 95% cap (resets 01:40 EDT).
+
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 20:54 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 23:45 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1021,6 +1028,7 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+ff76469 chore(handoff): auto-snapshot at heartbeat close
 53dd1a0 chore(handoff): auto-snapshot at close
 063dcca docs(handoff): Edge kept but quieted by two policies
 bf072a7 docs(handoff): Edge uninstaller refused with exit 93, nothing changed
@@ -1028,7 +1036,6 @@ bf072a7 docs(handoff): Edge uninstaller refused with exit 93, nothing changed
 cfb311f docs(handoff): live face tracking proven, 138/143 frames
 75a34f7 docs(handoff): stop live-desktop reparent tests after a near freeze
 e52d7e3 docs(handoff): Windhawk probe rules Windhawk out as the wallpaper blocker
-59beec3 docs(handoff): WorkerW layer is invisible on this machine, wallpaper slice stopped
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
