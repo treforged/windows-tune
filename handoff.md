@@ -5,6 +5,22 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-10-07 - install.ps1 downloads a pinned release and checks its SHA256 (ask 8b067c9e), queue empty
+
+- `install.ps1` used to download `archive/refs/heads/main.zip` with no check.
+  It now downloads `releases/download/v1.0.0/windows-tune-v1.0.0.zip` and refuses
+  to unpack it unless the SHA256 equals `$ReleaseSha256` in the script. A copy
+  with no pin refuses before any network call. `-Sha256` checks a `-FromZip` too.
+- Release v1.0.0 is published with the zip attached. The tag points at 3865692,
+  so the installed copy of `install.ps1` carries an EMPTY pin. That is expected:
+  people run the copy from `main`, which carries the pin (bf6fe9d).
+- **Cutting the next release:** tag, then
+  `git archive --format=zip --prefix=windows-tune-<tag>/ -o <zip> <tag>`, attach it
+  with `gh release create`, and change `$ReleaseTag` and `$ReleaseSha256` in ONE commit.
+- Gate: preflight 7a (wrong hash -> exit 1, nothing unpacked; proven red by
+  neutering the compare) and 7b (tag and SHA pinned, no branch zip). 88 ok, exit 0.
+  Live end-to-end from raw `main`: SHA256 verified, exit 0, 25 files installed.
+
 ## 2026-10-07 - secret-scan refuses Stripe and ElevenLabs keys (ask af5686f3), queue empty
 
 - Ported the 3 rules from `~/.claude/bin/secret-scan` (Stripe secret/restricted,
@@ -1027,7 +1043,7 @@ acceptably and assert TABLES unacceptably.
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 01:01 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 02:06 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -1038,14 +1054,14 @@ machine-generated and replaced each time; put durable notes above it._
 - **Recent commits:**
 
 ```
+62d6c84 docs(handoff): secret-scan Stripe/ElevenLabs port shipped, queue empty
+131cec5 feat(secret-scan): refuse Stripe and ElevenLabs keys (ask af5686f3)
 5d40052 docs(handoff): park at 5h cap, secret-scan port ask af5686f3 first up
 ff76469 chore(handoff): auto-snapshot at heartbeat close
 53dd1a0 chore(handoff): auto-snapshot at close
 063dcca docs(handoff): Edge kept but quieted by two policies
 bf072a7 docs(handoff): Edge uninstaller refused with exit 93, nothing changed
 5c0e2e2 docs(handoff): Edge uninstaller refused with exit 93, nothing changed
-cfb311f docs(handoff): live face tracking proven, 138/143 frames
-75a34f7 docs(handoff): stop live-desktop reparent tests after a near freeze
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
