@@ -50,7 +50,7 @@ $ErrorActionPreference = 'Stop'
 # Both change together, in one commit, when a new release is cut. The hash is
 # what makes a swapped or corrupted download fail instead of install.
 $ReleaseTag    = 'v1.0.0'
-$ReleaseSha256 = ''
+$ReleaseSha256 = 'a7a4317d772aa7c048d5757f09da82bb8d9cea994d5c603d725dd08413530c13'
 $ReleaseUrl    = "https://github.com/treforged/windows-tune/releases/download/$ReleaseTag/windows-tune-$ReleaseTag.zip"
 
 function Assert-ZipHash([string]$ZipPath, [string]$Expected) {
