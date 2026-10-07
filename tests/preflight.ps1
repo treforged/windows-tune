@@ -120,6 +120,12 @@ try {
     else { Fail "Choice 3 wiring: exit $LASTEXITCODE`n$($out -join "`n")" }
 } finally { Remove-Item -Recurse -Force $scratch }
 
+# 7b. the download path is pinned: a release tag and a 64-hex SHA256
+$inst = Get-Content (Join-Path $repo 'install.ps1') -Raw
+if ($inst -match "(?m)^\`$ReleaseTag\s*=\s*'v\d+\.\d+\.\d+'") { Pass 'install.ps1 pins a release tag' } else { Fail 'install.ps1 carries no release tag pin' }
+if ($inst -match "(?m)^\`$ReleaseSha256\s*=\s*'[0-9a-fA-F]{64}'") { Pass 'install.ps1 pins a release SHA256' } else { Fail 'install.ps1 carries no release SHA256 pin' }
+if ($inst -match 'archive/refs/heads') { Fail 'install.ps1 still downloads a moving branch zip' } else { Pass 'install.ps1 downloads no branch zip' }
+
 # 7. the installer, offline, from a zip of this tree
 $zipDir = Join-Path $env:TEMP ('wt-zip-' + [Guid]::NewGuid())
 $target = Join-Path $env:TEMP ('wt-target-' + [Guid]::NewGuid())
@@ -134,8 +140,17 @@ try {
     New-Item -ItemType Directory -Path (Join-Path $target 'scripts') | Out-Null
     Set-Content (Join-Path $target 'scripts\01-network-tune-revert.ps1') '# the user''s own revert' -Encoding ascii
 
-    $out = & $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'install.ps1') -FromZip $zip -Path $target
-    if ($LASTEXITCODE -ne 0) { Fail "install.ps1 exit $LASTEXITCODE`n$out" } else { Pass 'install.ps1 -FromZip exit 0' }
+    # 7a. a wrong hash must REFUSE, and must leave nothing unpacked behind
+    $badTarget = Join-Path $env:TEMP ('wt-bad-' + [Guid]::NewGuid())
+    $out = & $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'install.ps1') -FromZip $zip -Path $badTarget -Sha256 ('0' * 64)
+    if ($LASTEXITCODE -eq 1 -and ($out -join ' ') -match 'SHA256 mismatch') { Pass 'install.ps1 refuses a zip whose SHA256 differs' }
+    else { Fail "wrong-hash install was not refused: exit $LASTEXITCODE`n$out" }
+    if (Test-Path (Join-Path $badTarget 'windows-tune.ps1')) { Fail 'wrong-hash install still unpacked files' } else { Pass 'wrong-hash install unpacked nothing' }
+    Remove-Item -Recurse -Force $badTarget -ErrorAction SilentlyContinue
+
+    $goodHash = (Get-FileHash -Algorithm SHA256 $zip).Hash
+    $out = & $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'install.ps1') -FromZip $zip -Path $target -Sha256 $goodHash
+    if ($LASTEXITCODE -ne 0) { Fail "install.ps1 exit $LASTEXITCODE`n$out" } else { Pass 'install.ps1 -FromZip with the right SHA256 exit 0' }
     foreach ($n in 'windows-tune.ps1', 'Run-WindowsTune.cmd', 'NOTICE.md', 'scripts\01-network-tune.ps1', 'scripts\06-remove-third-party-av.ps1') {
         if (Test-Path (Join-Path $target $n)) { Pass "installed $n" } else { Fail "missing after install: $n" }
     }

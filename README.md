@@ -99,7 +99,9 @@ privacy story; the menu shows it and will not run anything until you type
 and runs one script at a time with a y/N confirmation before every change.
 
 **From PowerShell:** download the installer, read it, then run it. It puts the
-repo in `%LOCALAPPDATA%\windows-tune` and runs nothing:
+repo in `%LOCALAPPDATA%\windows-tune` and runs nothing. It downloads one
+pinned release, not the moving `main` branch, and refuses the zip if its SHA256
+does not match the value written in the script:
 
 ```powershell
 Invoke-WebRequest https://raw.githubusercontent.com/treforged/windows-tune/main/install.ps1 -OutFile install.ps1
@@ -120,7 +122,7 @@ a `*-revert.ps1` beside themselves first.
 | Script | Does |
 | --- | --- |
 | `windows-tune.ps1` / `Run-WindowsTune.cmd` | The menu. Shows NOTICE.md, requires `I ACCEPT`, elevates once, confirms every change, lists revert files. |
-| `install.ps1` | Downloads the repo zip to `%LOCALAPPDATA%\windows-tune` and unblocks it. Runs nothing. |
+| `install.ps1` | Downloads one pinned release zip, checks its SHA256, unpacks it to `%LOCALAPPDATA%\windows-tune` and unblocks it. Runs nothing. |
 | `01-network-tune.ps1` | Restores auto-tuning, RSS, RSC and NIC offloads; disables NIC power saving. Tier A applies live; Tier B stages until `-BounceAdapter` or reboot. |
 | `02-power-tune.ps1` | Minimum processor state → 0%, ceiling untouched. |
 | `03-storage-report.ps1` | Read-only. Largest folders per drive; every Steam game with **real** last-played dates; Epic/Xbox by size. |

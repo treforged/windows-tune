@@ -64,7 +64,9 @@ PowerShell text file; read it before you run it.
 - The author collects nothing. Nothing about your hardware, games, files or
   settings is seen by anyone but you.
 - The only network activity in the whole repo is the installer's one download
-  of the repo zip from github.com over HTTPS. The install path is always
+  of a pinned release zip from github.com over HTTPS. The installer checks
+  that zip's SHA256 against the value written in `install.ps1` and refuses to
+  unpack it if they differ. The install path is always
   download, read, run: the ZIP from GitHub, or `install.ps1` saved to disk
   first. There is deliberately no "paste this one line into PowerShell"
   installer. A `irm <url> | iex` line downloads and executes code in one step
