@@ -13,7 +13,7 @@ Earlier resume briefs said to start on Fable; they are out of date.
   side had no stored value, so the revert cannot restore it exactly. Undo for DC
   is OPEN: options are a powercfg default value, or leave DC at 100. Not guessed.
 - The revert file is gitignored (`*-revert.ps1`), so it is not in the repo.
-- Next: press the GUI's Yes/No box and option 2 on a safe window.
+- Next: press the GUI's Yes/No box and option 2 ONLY after Tre's typed yes in this tab. Sam ruled this a live write (ask 015c933b).
 
 ## 2026-10-13 - core unpark is a published menu option (asks 19fca833, 38382c63); bloatware dropped (47fde663)
 
