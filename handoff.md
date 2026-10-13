@@ -5,6 +5,27 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-10-13 - session close: Sam asked for a handoff so the successor starts on Sonnet
+
+- State: origin/main 0/0, tree clean. `ask list --owner Gus` returns 0 rows.
+- Shipped this session (all on origin/main, verified by contents):
+  - `scripts/07-update-check.ps1`: reports NEWER or UP TO DATE from the public API;
+    `-Download` verifies the SHA256 and never installs. Preflight stage 19.
+  - `windows-tune-gui.ps1`: 7 checkboxes, Install selected and Install all. Yes/No
+    box before any changing option. Preflight stage 20.
+  - `scripts/08-core-unpark.ps1` as menu option 7: CPMINCORES 100% on AC and DC,
+    read back from the registry. Preflight stage 21 checks the README's revert list.
+  - README revert claims corrected: only 01, 02 and 08 write a revert file.
+- Live write, approved by Tre ("1. yes"): the unpark script ran elevated.
+  AC 100, DC 100. Tre decided: battery stays at 100%, so there is no DC undo.
+- Standing rule (Sam, ask 015c933b): do NOT press the click-install window or
+  option 2 on Tre's PC without his typed yes in this tab. Not pressed.
+- Bloatware removal is DROPPED (Tre: do not remove the 10 consumer apps).
+- Promotion: windows-tune stays free and public (decision a2931026). Ruby owns the
+  promotion posts (ask a48e30a7). Nothing is posted by this desk.
+- Preflight: 110 ok, exit 0 at the last run.
+- Next when Tre says yes: press the click-install Yes/No box and option 2 in a safe window.
+
 ## 2026-10-13 - unpark run LIVE on this PC, approved by Tre (follow-up 142fd29e)
 
 - Tre said "1. yes". The script ran elevated through the UAC prompt. Registry read
