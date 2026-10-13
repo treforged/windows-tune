@@ -5,6 +5,19 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-10-13 - private-repo plan written, blocked on Tre's shape pick (ask a4bad735)
+
+- Plan is in `claudecontext/plans/windows-tune-private-plan.md`, with two shapes:
+  1) private source repo plus a small public releases-only repo that keeps the
+  install URLs working, 2) stay public. Nothing is changed. The repo is still
+  PUBLIC (`gh repo view` reads PUBLIC; `origin/main` 0/0).
+- Sam answered tracker d6004866: windows-tune is NOT confirmed as sellable
+  (decision f54c3e7a). Sam filed the question to Tre as f5cc2208.
+- Blocked on Tre: his answer to f5cc2208 picks the shape, and his yes is needed
+  before any visibility flip. Nothing here moves until then.
+- Working tree: the AUTO-SNAPSHOT block at the bottom of this file was removed
+  by the handoff hook. It was machine-written and is not part of this record.
+
 ## 2026-10-07 - install.ps1 downloads a pinned release and checks its SHA256 (ask 8b067c9e), queue empty
 
 - `install.ps1` used to download `archive/refs/heads/main.zip` with no check.
@@ -1039,29 +1052,3 @@ acceptably and assert TABLES unacceptably.
   `~/.claude/bin/secret-scan/` into `scripts/secret-scan.mjs` (here and net-tune),
   run `node --test`, prove red, commit. NOT started. First up next session.
 - Parked because the 5h window read 97% of the 95% cap (resets 01:40 EDT).
-
-<!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
-## Auto-snapshot
-
-_Written 2026-10-07 02:06 by handoff_hook. Everything below this heading is
-machine-generated and replaced each time; put durable notes above it._
-
-- **Branch:** `main`
-- **vs upstream:** 0 ahead, 0 behind
-
-- **Working tree:** clean
-
-- **Recent commits:**
-
-```
-62d6c84 docs(handoff): secret-scan Stripe/ElevenLabs port shipped, queue empty
-131cec5 feat(secret-scan): refuse Stripe and ElevenLabs keys (ask af5686f3)
-5d40052 docs(handoff): park at 5h cap, secret-scan port ask af5686f3 first up
-ff76469 chore(handoff): auto-snapshot at heartbeat close
-53dd1a0 chore(handoff): auto-snapshot at close
-063dcca docs(handoff): Edge kept but quieted by two policies
-bf072a7 docs(handoff): Edge uninstaller refused with exit 93, nothing changed
-5c0e2e2 docs(handoff): Edge uninstaller refused with exit 93, nothing changed
-```
-
-<!-- AUTO-SNAPSHOT:END -->
