@@ -573,6 +573,44 @@ if (-not $svcActual18) {
     }
 }
 
+# --- stage 19: the update verdict, CALLED with synthetic release data ----------
+# 07-update-check.ps1 must never report "up to date" on a read it could not
+# verify. Get-UpdateVerdict is lifted by the Parser and CALLED with fixtures:
+# no network, nothing downloaded. Every malformed case must come back Unknown.
+$updPath19 = Join-Path (Join-Path $repo 'scripts') '07-update-check.ps1'
+$errors = $null
+$updAst19 = [System.Management.Automation.Language.Parser]::ParseFile($updPath19, [ref]$null, [ref]$errors)
+if ($errors.Count) { Fail "07-update-check.ps1 does not parse: $($errors[0].Message)" }
+$verFn19 = $updAst19.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-UpdateVerdict' }, $true)
+if (-not $verFn19) {
+    Fail '07-update-check.ps1 has no Get-UpdateVerdict - stage 19 checked nothing'
+} else {
+    . ([scriptblock]::Create($verFn19.Extent.Text))
+    $dg19 = 'sha256:' + ('ab' * 32)
+    $good19 = [pscustomobject]@{ tag_name = 'v1.1.0'; assets = @([pscustomobject]@{ name = 'windows-tune-v1.1.0.zip'; digest = $dg19; browser_download_url = 'https://github.com/treforged/windows-tune/releases/download/v1.1.0/windows-tune-v1.1.0.zip' }) }
+    $offHost19 = [pscustomobject]@{ tag_name = 'v1.1.0'; assets = @([pscustomobject]@{ name = 'windows-tune-v1.1.0.zip'; digest = $dg19; browser_download_url = 'https://example.invalid/z.zip' }) }
+    $same19 = [pscustomobject]@{ tag_name = 'v1.0.0'; assets = @([pscustomobject]@{ name = 'windows-tune-v1.0.0.zip'; digest = $dg19; browser_download_url = 'https://github.com/treforged/windows-tune/releases/download/v1.0.0/windows-tune-v1.0.0.zip' }) }
+    $noDig19 = [pscustomobject]@{ tag_name = 'v1.1.0'; assets = @([pscustomobject]@{ name = 'windows-tune-v1.1.0.zip'; digest = $null; browser_download_url = 'u' }) }
+    $noAsset19 = [pscustomobject]@{ tag_name = 'v1.1.0'; assets = @() }
+    $badTag19 = [pscustomobject]@{ tag_name = 'latest'; assets = @([pscustomobject]@{ name = 'windows-tune-latest.zip'; digest = $dg19; browser_download_url = 'u' }) }
+    $cases19 = @(
+        @{ n = 'a newer release';          i = 'v1.0.0'; l = $good19;    s = 'Newer' }
+        @{ n = 'the same release';         i = 'v1.0.0'; l = $same19;    s = 'UpToDate' }
+        @{ n = 'no digest published';      i = 'v1.0.0'; l = $noDig19;   s = 'Unknown' }
+        @{ n = 'no matching asset';        i = 'v1.0.0'; l = $noAsset19; s = 'Unknown' }
+        @{ n = 'a non-version tag';        i = 'v1.0.0'; l = $badTag19;  s = 'Unknown' }
+        @{ n = 'no response at all';       i = 'v1.0.0'; l = $null;      s = 'Unknown' }
+        @{ n = 'a download URL off this repo'; i = 'v1.0.0'; l = $offHost19; s = 'Unknown' }
+        @{ n = 'no installed VERSION';     i = $null;    l = $good19;    s = 'Unknown' }
+    )
+    foreach ($c in $cases19) {
+        try { $got19 = (Get-UpdateVerdict -Installed $c.i -Latest $c.l).Status }
+        catch { $got19 = 'threw: ' + $_.Exception.Message }
+        if ($got19 -eq $c.s) { Pass "Get-UpdateVerdict on $($c.n) -> $got19" }
+        else { Fail "Get-UpdateVerdict on $($c.n) said $got19, expected $($c.s)" }
+    }
+}
+
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green
 exit 0
