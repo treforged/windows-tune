@@ -611,6 +611,45 @@ if (-not $verFn19) {
     }
 }
 
+# --- stage 20: the click-install window agrees with the menu it presses --------
+# windows-tune-gui.ps1 drives windows-tune.ps1 by -Choice. Each option's labels
+# and flags must match the menu row for the same key, or a press runs the wrong
+# thing. Get-OptionPlan is lifted by the Parser and CALLED with fixtures.
+$guiPath20 = Join-Path $repo 'windows-tune-gui.ps1'
+$menuText20 = Get-Content (Join-Path $repo 'windows-tune.ps1') -Raw
+$guiText20 = Get-Content $guiPath20 -Raw
+$errors = $null
+$guiAst20 = [System.Management.Automation.Language.Parser]::ParseFile($guiPath20, [ref]$null, [ref]$errors)
+if ($errors.Count) { Fail "windows-tune-gui.ps1 does not parse: $($errors[0].Message)" }
+$planFn20 = $guiAst20.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-OptionPlan' }, $true)
+if (-not $planFn20) {
+    Fail 'windows-tune-gui.ps1 has no Get-OptionPlan - stage 20 checked nothing'
+} else {
+    . ([scriptblock]::Create($planFn20.Extent.Text))
+    $p20 = @(Get-OptionPlan -Checked @($true,$false,$false,$true,$false,$false))
+    if (($p20.Count -eq 2) -and ($p20[0].Choice -eq 1) -and (-not $p20[0].Changes) -and ($p20[1].Choice -eq 4) -and $p20[1].Changes) {
+        Pass 'Get-OptionPlan marks option 1 read-only and option 4 as a change'
+    } else { Fail "Get-OptionPlan wrong for options 1 and 4: count=$($p20.Count)" }
+    if (@(Get-OptionPlan -Checked @($false,$false,$false,$false,$false,$false)).Count -eq 0) { Pass 'Get-OptionPlan with nothing checked plans nothing' }
+    else { Fail 'Get-OptionPlan planned something with nothing checked' }
+}
+# every option's label is the menu's label for the same key, and its -Choice is that key
+$argRows20 = [regex]::Matches($guiText20, "Label = '([^']+)';\s+Args = '-Choice (\d) -AcceptRisk( -NoElevate)?( -Yes)?'")
+if ($argRows20.Count -ne 6) { Fail "windows-tune-gui.ps1 has $($argRows20.Count) option rows, expected 6 - stage 20 checked nothing" }
+foreach ($r20 in $argRows20) {
+    $label20 = $r20.Groups[1].Value; $key20 = $r20.Groups[2].Value; $yes20 = $r20.Groups[4].Value
+    $menuLine20 = ($menuText20 -split "`n") | Where-Object { $_ -match "^\s*'$key20' = " } | Select-Object -First 1
+    if (-not $menuLine20 -or $menuLine20 -notmatch [regex]::Escape("label = '$label20'")) {
+        Fail "GUI option $key20 label '$label20' does not match the menu row for $key20"; continue
+    }
+    # a menu row with changes must be pressed with -Yes, a read-only row must not need it
+    $menuChanges20 = ($menuText20 -split "`n") | Where-Object { $_ -match "^\s*'$key20' = " } | Out-String
+    $changesRow20 = $menuChanges20 -notmatch "changes = ''"
+    if ($changesRow20 -and -not $yes20) { Fail "GUI option $key20 changes the machine but is not pressed with -Yes" }
+    elseif (-not $changesRow20 -and $yes20) { Fail "GUI option $key20 is read-only in the menu but is pressed with -Yes" }
+    else { Pass "GUI option $key20 matches menu row $key20 (label, -Choice, -Yes)" }
+}
+
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green
 exit 0

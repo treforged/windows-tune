@@ -5,6 +5,29 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-10-13 - click-install window: per item and install all (ask a98fdc12)
+
+- New `windows-tune-gui.ps1`: six checkboxes (the menu's options 1-6), `Install
+  selected` and `Install all`. It runs `windows-tune.ps1 -Choice N` with fixed
+  arguments and never builds a command from typed text. Read-only options pass
+  `-NoElevate`, so they do not raise UAC.
+- Before any changing option (3-6) runs, a Yes/No box lists what will change.
+  No such option runs without that yes. A non-admin session refuses changing
+  options and does not self-elevate.
+- Drafted by the free tier (groq gpt-oss-120b; ollama returned nothing in this
+  run). Reviewed and fixed by Gus: markdown fences stripped, `$args` renamed
+  (it shadowed the automatic variable), a redirected pipe nobody read removed,
+  `Point(x, $y + n)` precedence bug fixed, and button handlers wrapped in
+  explicit EventHandler delegates.
+- Gate: preflight stage 20 parses the GUI, CALLS `Get-OptionPlan`, and checks
+  each option's label, `-Choice` and `-Yes` against the menu row for the same key.
+  **106 ok, exit 0.** Proven red: removing `-Yes` from option 4 gives FAIL.
+- Press test (scratch harness, not in the gate): checked option 1 and pressed
+  Install selected. Result `Exit code: 0` after 4m57s, the real storage report.
+  Limit: the Yes/No box is not pressed by any test, and option 2 was not pressed.
+- Not done: unpark (waits on Tre's battery answer), bloatware removal (waits on
+  Tre's list answer), and the menu's own self-elevation path for the GUI.
+
 ## 2026-10-13 - update check: finds and offers a newer release, never installs (ask a98fdc12)
 
 - New `scripts/07-update-check.ps1` and a `VERSION` file (v1.0.0). The script asks
