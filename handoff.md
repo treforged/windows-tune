@@ -5,6 +5,26 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-10-13 - core unpark is a published menu option (asks 19fca833, 38382c63); bloatware dropped (47fde663)
+
+- Tre answered: his cores are already unparked, but the PUBLISHED version must do
+  it for other people, on battery too. Built `scripts/08-core-unpark.ps1` and menu
+  option 7 (and the GUI row). It sets CPMINCORES (100%) on the ACTIVE plan for AC
+  and DC, reads the values back FROM THE REGISTRY (the setting is hidden from
+  powercfg's listing), and writes `08-core-unpark-revert.ps1` only when something
+  would change. A side with no stored value is named as unrestorable in the revert.
+- Bloatware removal is DROPPED: Tre said do not remove the 10 consumer apps.
+- README corrected (a61066c3): only 01, 02 and 08 write a revert file. 03 changes
+  nothing; 04 is irreversible; 05 and 06 write no revert file. Gate stage 21
+  asserts the README's list against the scripts. Proven red by changing the
+  README to name 03.
+- Gate: preflight **110 ok, exit 0**. Stage 20 now expects 7 GUI rows.
+- Measured on this PC (read-only probe, writes stripped): AC = 100%, DC = not stored.
+  So the real run WOULD write DC on this PC, and it has NOT been run here. It needs
+  an elevated run that Tre approves on his own machine.
+- Unelevated run refuses with the elevation message before touching anything.
+- Not done: a live elevated write on a machine. Not claimed.
+
 ## 2026-10-13 - click-install window: per item and install all (ask a98fdc12)
 
 - New `windows-tune-gui.ps1`: six checkboxes (the menu's options 1-6), `Install
