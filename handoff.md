@@ -5,6 +5,26 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-10-13 - update check: finds and offers a newer release, never installs (ask a98fdc12)
+
+- New `scripts/07-update-check.ps1` and a `VERSION` file (v1.0.0). The script asks
+  the public GitHub API for the latest release (read-only, no token) and prints
+  UP TO DATE, NEWER, or UNKNOWN. A failed read is UNKNOWN, never up to date.
+- `-Download` fetches the zip only when a newer release exists, checks its SHA256
+  against the digest GitHub publishes, and deletes it on mismatch. It installs
+  nothing. Install stays a separate step: `install.ps1 -FromZip`.
+- Trust limit: the digest comes from the same release as the zip. It proves the
+  file is the one GitHub published, not that the maintainer account is trusted.
+  The pinned hash in `install.ps1` on main is the only independent check.
+- Gate: preflight stage 19 CALLS `Get-UpdateVerdict` with 8 fixtures (newer, same,
+  no digest, no asset, bad tag, no response, off-host URL, no VERSION). **97 ok,
+  exit 0.** Live run against the public API: `v1.0.0 is the latest release`, exit 0.
+- Proven red in scratch copies: removing the digest guard gives FAIL; removing the
+  off-host URL guard gives FAIL. The first mutant crashed the stage instead of
+  failing it, so stage 19 now catches the throw and reports it.
+- Not wired into the menu yet. Bloatware list is still a draft in the scratchpad
+  and waits on Tre's answer on MSI Center and Minecraft.
+
 ## 2026-10-13 - private-repo plan written, blocked on Tre's shape pick (ask a4bad735)
 
 - Plan is in `claudecontext/plans/windows-tune-private-plan.md`, with two shapes:
