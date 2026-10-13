@@ -11,7 +11,7 @@ Earlier resume briefs said to start on Fable; they are out of date.
   back after the run: AC 0x64 (was already 100), DC 0x64 (was not stored).
 - The revert file `scripts/08-core-unpark-revert.ps1` restores AC only. The DC
   side had no stored value, so the revert cannot restore it exactly. Undo for DC
-  is OPEN: options are a powercfg default value, or leave DC at 100. Not guessed.
+  was DECIDED by Tre: leave battery at 100%. No DC undo.
 - The revert file is gitignored (`*-revert.ps1`), so it is not in the repo.
 - Next: press the GUI's Yes/No box and option 2 ONLY after Tre's typed yes in this tab. Sam ruled this a live write (ask 015c933b).
 
