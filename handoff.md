@@ -5,6 +5,16 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-10-13 - unpark run LIVE on this PC, approved by Tre (follow-up 142fd29e)
+
+- Tre said "1. yes". The script ran elevated through the UAC prompt. Registry read
+  back after the run: AC 0x64 (was already 100), DC 0x64 (was not stored).
+- The revert file `scripts/08-core-unpark-revert.ps1` restores AC only. The DC
+  side had no stored value, so the revert cannot restore it exactly. Undo for DC
+  is OPEN: options are a powercfg default value, or leave DC at 100. Not guessed.
+- The revert file is gitignored (`*-revert.ps1`), so it is not in the repo.
+- Next: press the GUI's Yes/No box and option 2 on a safe window.
+
 ## 2026-10-13 - core unpark is a published menu option (asks 19fca833, 38382c63); bloatware dropped (47fde663)
 
 - Tre answered: his cores are already unparked, but the PUBLISHED version must do
