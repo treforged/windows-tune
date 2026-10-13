@@ -1,8 +1,9 @@
 # windows-tune
 
-Measured fixes for a Windows 11 gaming and development desktop. Every script
-writes a revert file before it changes anything, and every claim here came from
-a before/after measurement on a real machine, not from a tweak list.
+Measured fixes for a Windows 11 gaming and development desktop. Network, power
+and core-unpark changes write a revert file before they change anything. The others do
+not. Every claim here came from a before/after
+measurement on a real machine, not from a tweak list.
 
 The theme: most "gaming optimizer" tools and custom power plans make things
 **worse**. This repo mostly undoes them.
@@ -116,8 +117,9 @@ should not teach the habit.
 
 ## Scripts
 
-Run elevated, in order, or individually. All are `-WhatIf`-free but all write
-a `*-revert.ps1` beside themselves first.
+Run elevated, in order, or individually. None support `-WhatIf`. Only 01, 02 and 08
+write a `*-revert.ps1` beside themselves first. 03 changes nothing. 04, 05 and 06
+write no revert file: 04's cleanup cannot be undone, and 06 removes a product.
 
 | Script | Does |
 | --- | --- |
@@ -159,8 +161,9 @@ script prints when you run it.
 
 ## Reverting
 
-Every script writes `<name>-revert.ps1` capturing the values that were live
-before it ran, and only when there is something to change. Run it elevated.
+Scripts 01, 02 and 08 write `<name>-revert.ps1` capturing the values that were live
+before they ran, and only when there is something to change. Run it elevated.
+04, 05 and 06 have no revert file (see the scripts table).
 Reverts are generated from your machine's actual state, not from assumed
 defaults.
 

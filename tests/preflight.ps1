@@ -635,7 +635,7 @@ if (-not $planFn20) {
 }
 # every option's label is the menu's label for the same key, and its -Choice is that key
 $argRows20 = [regex]::Matches($guiText20, "Label = '([^']+)';\s+Args = '-Choice (\d) -AcceptRisk( -NoElevate)?( -Yes)?'")
-if ($argRows20.Count -ne 6) { Fail "windows-tune-gui.ps1 has $($argRows20.Count) option rows, expected 6 - stage 20 checked nothing" }
+if ($argRows20.Count -ne 7) { Fail "windows-tune-gui.ps1 has $($argRows20.Count) option rows, expected 7 - stage 20 checked nothing" }
 foreach ($r20 in $argRows20) {
     $label20 = $r20.Groups[1].Value; $key20 = $r20.Groups[2].Value; $yes20 = $r20.Groups[4].Value
     $menuLine20 = ($menuText20 -split "`n") | Where-Object { $_ -match "^\s*'$key20' = " } | Select-Object -First 1
@@ -649,6 +649,21 @@ foreach ($r20 in $argRows20) {
     elseif (-not $changesRow20 -and $yes20) { Fail "GUI option $key20 is read-only in the menu but is pressed with -Yes" }
     else { Pass "GUI option $key20 matches menu row $key20 (label, -Choice, -Yes)" }
 }
+
+# --- stage 21: README revert claims match which scripts write a revert file ---
+# The README said every script writes a revert file. Only 01 and 02 do. This
+# stage asserts the README's stated list against the scripts themselves, so the
+# claim cannot drift from the code again.
+$revertScripts21 = @(Get-ChildItem (Join-Path $repo 'scripts') -Filter '0*.ps1' | Where-Object {
+    (Get-Content $_.FullName -Raw) -match "Join-Path[^
+]*'[^']*-revert\.ps1'"
+} | ForEach-Object { $_.Name.Substring(0,2) } | Sort-Object)
+$readme21 = Get-Content (Join-Path $repo 'README.md') -Raw
+$claimOk21 = $readme21 -match 'Only 01, 02 and 08\s+write a `\*-revert\.ps1`'
+if ($revertScripts21.Count -eq 0) { Fail 'stage 21 found no script that writes a revert file - checked nothing' }
+elseif (($revertScripts21 -join ',') -ne '01,02,08') { Fail "scripts that write a revert file are $($revertScripts21 -join ','), expected 01,02,08" }
+elseif (-not $claimOk21) { Fail 'README does not state that only 01 and 02 write a revert file' }
+else { Pass 'only 01, 02 and 08 write a revert file, and the README says so' }
 
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green

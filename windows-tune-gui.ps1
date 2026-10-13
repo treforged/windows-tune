@@ -78,7 +78,8 @@ $optionDefs = @(
     @{ Label = 'Network tune';                          Args = '-Choice 3 -AcceptRisk -Yes' },
     @{ Label = 'Power tune';                            Args = '-Choice 4 -AcceptRisk -Yes' },
     @{ Label = 'Component store cleanup';               Args = '-Choice 5 -AcceptRisk -Yes' },
-    @{ Label = 'Remove a third-party antivirus';        Args = '-Choice 6 -AcceptRisk -Yes' }
+    @{ Label = 'Remove a third-party antivirus';        Args = '-Choice 6 -AcceptRisk -Yes' },
+    @{ Label = 'Keep every CPU core unparked';          Args = '-Choice 7 -AcceptRisk -Yes' }
 )
 
 $checkboxes = @()

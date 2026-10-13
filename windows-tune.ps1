@@ -12,7 +12,7 @@
     with fixed arguments; nothing you type is turned into a command.
 
 .PARAMETER Choice
-    Run one menu option without showing the menu, then exit: 1-6, R or Q.
+    Run one menu option without showing the menu, then exit: 1-7, R or Q.
 
 .PARAMETER AcceptRisk
     Skip the I ACCEPT prompt. The elevated relaunch passes this so you are not
@@ -36,7 +36,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('1', '2', '3', '4', '5', '6', 'R', 'Q')][string]$Choice,
+    [ValidateSet('1', '2', '3', '4', '5', '6', '7', 'R', 'Q')][string]$Choice,
     [switch]$AcceptRisk,
     [switch]$NoElevate,
     [switch]$Yes
@@ -88,6 +88,8 @@ $menu = [ordered]@{
              changes = 'Deletes superseded component versions - the same DISM StartComponentCleanup Windows schedules itself, WITHOUT /ResetBase, so recent updates stay uninstallable; asks DISM first and skips if no cleanup is recommended' }
     '6' = @{ name = '06-remove-third-party-av.ps1'; args = @{};                       label = 'Remove a third-party antivirus';
              changes = 'UNINSTALLS a product you name - NOT reversible; the script asks for the product name itself' }
+    '7' = @{ name = '08-core-unpark.ps1';          args = @{};                        label = 'Keep every CPU core unparked';
+             changes = 'Minimum unparked cores = 100% on the active plan, AC and battery; costs idle power; writes 08-core-unpark-revert.ps1' }
     'R' = @{ name = '';                            args = @{};                        label = 'List revert files';                    changes = '' }
     'Q' = @{ name = '';                            args = @{};                        label = 'Quit';                                 changes = '' }
 }
