@@ -5,6 +5,14 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-10-15 - disk reclaim for Tre's C and G drives (ask 39918748), queue empty
+
+- Nothing in this repo changed. The work was machine-level, outside the repo. Detail is in the private session note `claudecontext/sessions/2026-10-15_windows-tune-disk-reclaim.md`.
+- Result: C went from 6.4 GB to about 75 GB free, G to about 225 GB free. Nothing was lost.
+- ## resume queue: empty. Optional, unapproved, wait for Tre: move the voice and ComfyUI tool folders to G (75 GB), Steam games, a quarantine folder review.
+- Lesson for any tuning script here: a size forecast from an earlier scan can be stale (one cleanup freed 1.3 GB, not the forecast 31 GB). Re-measure before you promise a number.
+- Chrome tabs: this session opened none, so none to close.
+
 ## 2026-10-13 - session close: Sam asked for a handoff so the successor starts on Sonnet
 
 - State: origin/main 0/0, tree clean. `ask list --owner Gus` returns 0 rows.
