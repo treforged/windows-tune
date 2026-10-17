@@ -5,6 +5,14 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-10-16 - net-tune merged into windows-tune (ask ba8ce085)
+
+- Sam approved: keep repo `treforged/windows-tune`, MIT. Pushed `4903e0f` to origin/main (0/0, verified by contents). Undo: tag `pre-merge-2026-10-16` is the old main (`b57284c`).
+- Imported 4 portable scripts into `privacy/` (audit, privacy-tune, browser-privacy, dns-encrypt) as a clean tree, no net-tune history. Not imported: Surfshark, Defender exclusions, logs, storage, home-connection note, and net-tune.ps1 and perf-tune.ps1 (they duplicate 01 and 02).
+- Scan: 0 secrets and 0 phone-shaped numbers in both histories. Preflight stage 22 is new, proven red, **114+1 ok, exit 0**.
+- The private `treforged/net-tune` repo is untouched. Sam decides whether to archive it.
+- Open: the privacy scripts are not in the menu or the click-install window yet (stage 20 expects 7 rows). Wire in only with Tre's go.
+
 ## 2026-10-15 - disk reclaim for Tre's C and G drives (ask 39918748), queue empty
 
 - Nothing in this repo changed. The work was machine-level, outside the repo. Detail is in the private session note `claudecontext/sessions/2026-10-15_windows-tune-disk-reclaim.md`.
