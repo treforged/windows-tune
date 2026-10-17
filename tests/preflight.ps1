@@ -665,6 +665,26 @@ elseif (($revertScripts21 -join ',') -ne '01,02,08') { Fail "scripts that write 
 elseif (-not $claimOk21) { Fail 'README does not state that only 01 and 02 write a revert file' }
 else { Pass 'only 01, 02 and 08 write a revert file, and the README says so' }
 
+# --- stage 22: privacy\ scripts (imported from net-tune) are portable and the audit runs --
+# Each script must exist, be ASCII, and carry nothing from the author's PC. The
+# detector is proven on a planted bad line, and the read-only audit is RUN.
+$privFiles22 = @('privacy-tune.ps1','privacy-audit.ps1','browser-privacy.ps1','dns-encrypt.ps1')
+$badRe22 = '(?i)tvonh|surfshark|\\Desktop\\(getforgenta|forged-glass|claudecontext)|192\.168\.|\bGus\b|\d{3}[-. ]\d{3}[-. ]\d{4}'
+$seen22 = 0
+foreach ($n in $privFiles22) {
+    $p = Join-Path $repo "privacy\$n"
+    if (-not (Test-Path $p)) { Fail "privacy\$n is missing"; continue }
+    $seen22++
+    $raw = Get-Content $p -Raw
+    if ($raw -match '[^\x00-\x7F]') { Fail "privacy\$n has non-ASCII characters" }
+    if ($raw -match $badRe22) { Fail "privacy\$n carries machine-specific or personal text: $($Matches[0])" }
+}
+if ($seen22 -eq 0) { Fail 'stage 22 found no privacy scripts - checked nothing' }
+if ('C:\Users\tvonh\Desktop\x' -notmatch $badRe22) { Fail 'stage 22 detector missed a planted personal path - it proved nothing' }
+$aud22 = & $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'privacy\privacy-audit.ps1') 2>&1 | Out-String
+if (($LASTEXITCODE -in 0,1) -and $aud22 -match '\d+ checks, \d+ readable') { Pass "privacy scripts are portable ($seen22 checked) and privacy-audit ran (exit $LASTEXITCODE)" }
+else { Fail "privacy-audit.ps1 did not report a result (exit $LASTEXITCODE)" }
+
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green
 exit 0
