@@ -132,6 +132,17 @@ write no revert file: 04's cleanup cannot be undone, and 06 removes a product.
 | `05-defender-handover.ps1` | Diagnoses the "no AV at all" state; repairs what a script safely can; adds developer exclusions once protection is genuinely on, and **verifies they were actually stored**. |
 | `06-remove-third-party-av.ps1` | Fully uninstalls an MSI-based third-party AV and waits for Windows to hand protection back to Defender. Usually needs no reboot and no Tamper Protection toggle. |
 
+### Privacy scripts (`privacy\`, standalone, not in the menu yet)
+
+Merged in from the former net-tune repo. Run each as a file, from the repo folder.
+
+| Script | Does |
+| --- | --- |
+| `privacy\privacy-audit.ps1` | Read-only. Checks 12 telemetry, ad-ID, location, browser-cookie and DoH settings. Exit 0 all as expected, 1 drift, 2 nothing readable. |
+| `privacy\privacy-tune.ps1` | Hides your language list from websites (per user, no admin). Writes `privacy-tune-revert.ps1` first. |
+| `privacyrowser-privacy.ps1` | Chrome and Edge policy: block third-party cookies and Chrome ad-topic APIs. Run elevated. Undo: `-Undo`. Refuses to overwrite a policy it did not write. |
+| `privacy\dns-encrypt.ps1` | Turns on DNS over HTTPS for 1.1.1.1 and 1.0.0.1. Run elevated. Rolls back by itself if a test lookup fails. Writes `dns-encrypt-revert.ps1` first. |
+
 ```powershell
 # see what is wrong, change nothing
 .\scripts\03-storage-report.ps1
