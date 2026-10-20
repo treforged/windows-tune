@@ -5,6 +5,15 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-10-20 - taskbar restyle PLAN from the CaTech reel (ask 568c4847). NOTHING APPLIED.
+
+- Reel look: a see-through taskbar (TranslucentTB) plus a centred macOS-style dock with a bounce on hover (Nexus dock, third-party installer from the creator's own download pack, NOT reviewed, not proposed).
+- Already true on this PC (read from registry): icons centred (TaskbarAl 1), Widgets off (TaskbarDa 0), Task View off, search box hidden (SearchboxTaskbarMode 0). TranslucentTB is not installed.
+- Plan A (recommended, no mod loader): `winget install --id 9PF4KZ2VN4W9 -s msstore` (TranslucentTB, Microsoft Store, open source). Clear style, no admin. Undo: `winget uninstall TranslucentTB`. Needs a security read of the package first.
+- Plan B (dock look): a third-party dock app, review first, taskbar auto-hide on. Not chosen yet.
+- Backup before any change: `reg export "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" backup.reg` and the same for `...\Search`. Undo for settings: `reg import backup.reg`.
+- No Windhawk (it blackened Office once). Apply only after Tre's typed yes in this tab.
+
 ## 2026-10-16 - net-tune merged into windows-tune (ask ba8ce085)
 
 - Sam approved: keep repo `treforged/windows-tune`, MIT. Pushed `4903e0f` to origin/main (0/0, verified by contents). Undo: tag `pre-merge-2026-10-16` is the old main (`b57284c`).
