@@ -13,6 +13,12 @@ Earlier resume briefs said to start on Fable; they are out of date.
 - Plan B (dock look): a third-party dock app, review first, taskbar auto-hide on. Not chosen yet.
 - Backup before any change: `reg export "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" backup.reg` and the same for `...\Search`. Undo for settings: `reg import backup.reg`.
 - No Windhawk (it blackened Office once). Apply only after Tre's typed yes in this tab.
+- Security read of TranslucentTB (2026-10-20), from public sources only, source code not audited line by line:
+  - Publisher Charles Milette (GitHub `sylveon`, 1793 of the commits, same author as the release). Store id 9PF4KZ2VN4W9, free, GPL-3.0, repo not archived, last push 2026-10-13, latest release 2026.2 (2026-08-31), about 20.6k stars.
+  - Store install is signed by Microsoft Store. `winget` source is `msstore`, so no unpinned download and no script runs.
+  - Privacy policy: no personal data collected or shared. It reads open window titles locally for its dynamic-state rules. No account, no telemetry claim beyond that.
+  - Not checked: a line-by-line code audit and runtime network traffic. Verdict: acceptable for Plan A. After install, confirm no outbound connections from the process.
+  - Waits for Sam's relayed typed yes from Tre. After the yes: install, screenshot the taskbar, send Sam the undo.
 
 ## 2026-10-16 - net-tune merged into windows-tune (ask ba8ce085)
 
