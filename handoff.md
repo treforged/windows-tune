@@ -5,7 +5,13 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
-## 2026-10-20 - taskbar restyle PLAN from the CaTech reel (ask 568c4847). NOTHING APPLIED.
+## 2026-10-20 - taskbar restyle APPLIED after Tre's typed yes (ask 568c4847). Plan A only.
+
+- Done: registry backups saved to `Documents/Desktop-Stash/taskbar-backup-2026-10-20/` (advanced.reg, search.reg). Installed TranslucentTB 2026.2.0.0 via winget msstore and launched it (pid seen, 0 TCP connections at check). Desktop screenshot shows a clear taskbar over the wallpaper.
+- Undo: `winget uninstall TranslucentTB`. Settings undo: `reg import` the two .reg files (no registry setting was changed).
+- Not done: Nexus dock, Windhawk (by decision). Default TranslucentTB settings only (clear on the desktop, normal when windows are open). Autostart is the app's own startup task.
+
+## (earlier same day) taskbar plan
 
 - Reel look: a see-through taskbar (TranslucentTB) plus a centred macOS-style dock with a bounce on hover (Nexus dock, third-party installer from the creator's own download pack, NOT reviewed, not proposed).
 - Already true on this PC (read from registry): icons centred (TaskbarAl 1), Widgets off (TaskbarDa 0), Task View off, search box hidden (SearchboxTaskbarMode 0). TranslucentTB is not installed.
