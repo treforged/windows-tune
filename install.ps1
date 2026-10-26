@@ -5,16 +5,24 @@
 .DESCRIPTION
     Downloads one PINNED release zip from github.com over HTTPS (or uses a
     zip you already have), checks its SHA256 against the value written in
-    this file, and refuses to unpack it if they differ. It then unpacks it to a folder under your own profile,
-    unblocks the files so Windows does not refuse to run them, and tells you
-    how to start. It does not execute any downloaded file and needs no
-    administrator rights.
+    this file, and refuses to unpack it if they differ. It then unpacks it to
+    %ProgramFiles%\windows-tune, unblocks the files so Windows does not refuse
+    to run them, and tells you how to start. It does not execute any
+    downloaded file.
+
+    The default folder needs administrator rights, so run this from an
+    ELEVATED PowerShell. That is the point: the menu runs its scripts as
+    administrator, and a folder only administrators can write is the one a
+    normal program cannot plant a script in. The menu refuses to elevate from
+    any other folder (audit 2c24feed lead 1).
 
     Any *-revert.ps1 or *.log files already in the target folder are left
     alone: those are your own revert files from earlier runs.
 
 .PARAMETER Path
-    Where to install. Default: %LOCALAPPDATA%\windows-tune.
+    Where to install. Default: %ProgramFiles%\windows-tune (needs admin).
+    A folder you can write without admin works, but the menu then runs only
+    its read-only options from there.
 
 .PARAMETER FromZip
     Use this local zip instead of downloading (offline install, or the test).
@@ -32,7 +40,7 @@
     Invoke-WebRequest https://raw.githubusercontent.com/treforged/windows-tune/main/install.ps1 -OutFile install.ps1
     notepad .\install.ps1
     powershell -ExecutionPolicy Bypass -File .\install.ps1
-    Download it, read it, then run it. There is deliberately no one-line
+    Download it, read it, then run it from an ELEVATED PowerShell. There is deliberately no one-line
     "pipe the download into PowerShell" form - see NOTICE.md.
 
 .EXAMPLE
@@ -40,7 +48,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Path = (Join-Path $env:LOCALAPPDATA 'windows-tune'),
+    [string]$Path = (Join-Path $env:ProgramFiles 'windows-tune'),
     [string]$FromZip,
     [string]$Sha256,
     [switch]$Launch
@@ -67,9 +75,21 @@ $tempZip = $null
 $tempFolder = $null
 
 try {
+    # The default folder is admin-only by design. Without admin the copy would fail half way, so say it first.
+    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdmin -and -not $PSBoundParameters.ContainsKey('Path')) {
+        throw "The default folder $Path needs administrator rights. Run this from an ELEVATED PowerShell. (-Path <folder> installs a copy that runs only the read-only options.) Nothing was installed."
+    }
+    # Elevated, stage under Program Files, not %TEMP%. %TEMP% is writable by every program running as
+    # you, so a file could be swapped there between the hash check and the copy into the admin-only
+    # folder. Folders made under Program Files inherit its admin-only ACL.
+    $stageRoot = if ($isAdmin) { $env:ProgramFiles } else { $env:TEMP }
     if ($FromZip) {
         if (-not (Test-Path $FromZip)) { throw "Zip not found: $FromZip" }
-        $zipPath = (Resolve-Path $FromZip).Path
+        # Hash and unpack a private copy, so the zip that is checked is the zip that is unpacked.
+        $tempZip = Join-Path $stageRoot ('windows-tune-' + [Guid]::NewGuid().ToString() + '.zip')
+        Copy-Item -LiteralPath (Resolve-Path $FromZip).Path -Destination $tempZip
+        $zipPath = $tempZip
         # Never unpack and Unblock-File an unchecked zip: with no -Sha256, the zip must be
         # the pinned release itself (audit 2c24feed lead 3).
         if ($Sha256) { Assert-ZipHash $zipPath $Sha256 } else { Assert-ZipHash $zipPath $ReleaseSha256 }
@@ -77,14 +97,14 @@ try {
         # Fail before any network call when this copy carries no pin.
         if ($ReleaseSha256 -notmatch '^[0-9a-fA-F]{64}$') { throw "This copy of install.ps1 has no release hash pinned. Use the copy on the main branch, or -FromZip." }
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        $tempZip = Join-Path $env:TEMP ('windows-tune-' + [Guid]::NewGuid().ToString() + '.zip')
+        $tempZip = Join-Path $stageRoot ('windows-tune-' + [Guid]::NewGuid().ToString() + '.zip')
         Write-Host "Downloading windows-tune $ReleaseTag from github.com ..." -ForegroundColor Cyan
         Invoke-WebRequest -UseBasicParsing $ReleaseUrl -OutFile $tempZip
         Assert-ZipHash $tempZip $ReleaseSha256
         $zipPath = $tempZip
     }
 
-    $tempFolder = Join-Path $env:TEMP ('windows-tune-' + [Guid]::NewGuid().ToString())
+    $tempFolder = Join-Path $stageRoot ('windows-tune-' + [Guid]::NewGuid().ToString())
     Expand-Archive -Force -Path $zipPath -DestinationPath $tempFolder
     $top = @(Get-ChildItem -Path $tempFolder -Directory)
     if ($top.Count -ne 1) { throw "Expected one folder inside the zip, found $($top.Count)." }

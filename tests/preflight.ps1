@@ -717,11 +717,79 @@ $fn24 = $ast24.Find({ param($n) $n -is [System.Management.Automation.Language.Fu
 if (-not $fn24) { Fail 'windows-tune.ps1 has no Test-UserWritable - stage 24 checked nothing' }
 else {
     . ([scriptblock]::Create($fn24.Extent.Text))
-    if (Test-UserWritable $env:LOCALAPPDATA) { Pass 'Test-UserWritable: %LOCALAPPDATA% (the default install) reads as user-writable' }
+    if (Test-UserWritable $env:LOCALAPPDATA) { Pass 'Test-UserWritable: %LOCALAPPDATA% (the old default install) reads as user-writable' }
     else { Fail 'Test-UserWritable says %LOCALAPPDATA% is not user-writable - the warning would never show' }
     if (-not (Test-UserWritable (Join-Path $env:SystemRoot 'System32'))) { Pass 'Test-UserWritable: System32 (admin-only) reads as not user-writable' }
     else { Fail 'Test-UserWritable says System32 is user-writable - the warning would cry wolf everywhere' }
+    if (-not (Test-UserWritable $env:ProgramFiles)) { Pass 'Test-UserWritable: Program Files (the install.ps1 default) reads as not user-writable' }
+    else { Fail 'Test-UserWritable says Program Files is user-writable - the default install would be refused' }
 }
+
+# --- stage 25: elevated, the menu never runs a script or revert a normal program could have planted (audit 2c24feed lead 1) ---
+$fnNames25 = 'Test-UserWritable', 'Get-UnsafeRunReason', 'Invoke-Checked'
+$fns25 = @($ast24.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $fnNames25 -contains $n.Name }, $true))
+if ($fns25.Count -ne 3) { Fail "windows-tune.ps1 has $($fns25.Count) of the 3 run-guard functions - stage 25 checked nothing" }
+else {
+    foreach ($f25 in $fns25) { . ([scriptblock]::Create($f25.Extent.Text)) }
+    $plant25 = Join-Path $env:TEMP ('wt-plant-' + [Guid]::NewGuid())
+    New-Item -ItemType Directory -Path (Join-Path $plant25 'scripts') | Out-Null
+    try {
+        $marker25 = Join-Path $plant25 'PLANTED-RAN.txt'
+        $revert25 = Join-Path $plant25 'scripts\99-planted-revert.ps1'
+        Set-Content $revert25 "Set-Content -LiteralPath '$marker25' 'ran'" -Encoding ascii
+        # 25a. elevated: the planted revert in a user-writable folder must NOT run
+        $said25 = (Invoke-Checked $revert25 -Elevated 6>&1 | Out-String)
+        if (-not (Test-Path $marker25) -and $said25 -match 'REFUSED') { Pass 'elevated: a planted *-revert.ps1 in a user-writable folder is refused and does not run' }
+        else { Fail "elevated: the planted revert RAN or was not refused (marker: $(Test-Path $marker25)) $said25" }
+        # 25b. control: the same file not elevated does run, so 25a refused a payload that works
+        Invoke-Checked $revert25 6>$null | Out-Null
+        if (Test-Path $marker25) { Pass 'control: the planted revert is a working payload when not elevated' }
+        else { Fail 'control: the planted revert did not run even unelevated - 25a proved nothing' }
+        # 25c. an admin-only file passes the same check, so the guard does not refuse everything
+        $sys25 = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+        $why25 = Get-UnsafeRunReason $sys25
+        if (-not $why25) { Pass 'an admin-only file (System32 powershell.exe) passes the run check' }
+        else { Fail "an admin-only file was refused: $why25" }
+        if (Get-UnsafeRunReason (Join-Path $plant25 'missing.ps1')) { Pass 'a missing file is refused, not vouched for' } else { Fail 'a missing file passed the run check' }
+    } finally { Remove-Item -Recurse -Force $plant25 -ErrorAction SilentlyContinue }
+}
+# 25d. static: Invoke-Checked is the ONLY place the menu runs a script by '&', so nothing can skip the check
+$amp25 = @($ast24.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] -and $n.InvocationOperator -eq [System.Management.Automation.Language.TokenKind]::Ampersand }, $true))
+$outside25 = @($amp25 | Where-Object { $p = $_.Parent; while ($p -and -not ($p -is [System.Management.Automation.Language.FunctionDefinitionAst])) { $p = $p.Parent }; -not $p -or $p.Name -ne 'Invoke-Checked' })
+if ($amp25.Count -eq 0) { Fail 'stage 25 found no & invocation in windows-tune.ps1 - checked nothing' }
+elseif ($outside25.Count) { Fail "windows-tune.ps1 runs a script with & outside Invoke-Checked at line $($outside25[0].Extent.StartLineNumber)" }
+else { Pass "windows-tune.ps1 runs scripts only through Invoke-Checked ($($amp25.Count) & call)" }
+# 25e. the whole menu, from a user-writable copy, with NO -NoElevate: it must not ask for elevation.
+#      Start-Process is shadowed by a function, so a regression records a call instead of raising UAC.
+$scratch25 = Join-Path $env:TEMP ('wt-noelev-' + [Guid]::NewGuid())
+New-Item -ItemType Directory -Path (Join-Path $scratch25 'scripts') | Out-Null
+try {
+    Copy-Item (Join-Path $repo 'windows-tune.ps1'), (Join-Path $repo 'NOTICE.md') $scratch25
+    Set-Content (Join-Path $scratch25 'scripts\03-storage-report.ps1') '"ARGS=$($args.Count)"' -Encoding ascii
+    $wrap25 = Join-Path $scratch25 'wrap.ps1'
+    Set-Content $wrap25 ("function Start-Process { 'START-PROCESS-CALLED' }`n& '" + (Join-Path $scratch25 'windows-tune.ps1') + "' -AcceptRisk -Choice 1`nexit `$LASTEXITCODE") -Encoding ascii
+    $out25 = (& $ps -NoProfile -ExecutionPolicy Bypass -File $wrap25) -join "`n"
+    if ($elevated) {
+        if ($LASTEXITCODE -eq 4 -and $out25 -match 'REFUSED to run elevated' -and $out25 -notmatch 'ARGS=') { Pass 'elevated from a user-writable folder: the menu refuses with exit 4 and runs nothing' }
+        else { Fail "elevated from a user-writable folder: exit $LASTEXITCODE`n$out25" }
+    } elseif ($LASTEXITCODE -eq 0 -and $out25 -match 'Not elevating' -and $out25 -match 'ARGS=0' -and $out25 -notmatch 'START-PROCESS-CALLED') {
+        Pass 'from a user-writable folder the menu does not elevate, and the read-only option still runs'
+    } else { Fail "from a user-writable folder: exit $LASTEXITCODE`n$out25" }
+} finally { Remove-Item -Recurse -Force $scratch25 -ErrorAction SilentlyContinue }
+# 25f. install.ps1 with no -Path and no admin refuses up front instead of failing half way into Program Files
+if (-not $elevated) {
+    $pf25 = Join-Path $env:ProgramFiles 'windows-tune'
+    $had25 = Test-Path $pf25
+    $out25 = (& $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'install.ps1') -FromZip (Join-Path $repo 'README.md')) -join ' '
+    if ($LASTEXITCODE -eq 1 -and $out25 -match 'needs administrator rights' -and ($had25 -or -not (Test-Path $pf25))) { Pass 'install.ps1 default (Program Files) without admin: refused, nothing installed' }
+    else { Fail "install.ps1 default without admin: exit $LASTEXITCODE $out25" }
+} else { Pass 'stage 25f skipped: this gate is ELEVATED, and it must not install into Program Files' }
+# 25g. no script runs a revert file it just wrote back off disk (privacy\dns-encrypt.ps1 rolls back from memory)
+$src25 = @(Get-ChildItem $repo -Recurse -File -Filter '*.ps1' | Where-Object { $_.FullName -notmatch '\\(\.git|tests)\\' -and $_.Name -notlike '*-revert.ps1' })
+$runsRevert25 = @($src25 | Select-String -Pattern '&\s*\$revert\b')
+if ($src25.Count -eq 0) { Fail 'stage 25g scanned no scripts - checked nothing' }
+elseif ($runsRevert25.Count) { foreach ($h25 in $runsRevert25) { Fail "$($h25.Filename):$($h25.LineNumber) runs its revert file back off disk" } }
+else { Pass "no script runs a just-written revert file back off disk ($($src25.Count) scanned)" }
 
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green

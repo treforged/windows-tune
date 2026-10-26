@@ -159,7 +159,9 @@ $runSelected = {
         $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" $scriptArgs" -Wait -PassThru
         $exitCode = $proc.ExitCode
 
-        Set-Status -Index $idx -Text "Exit code: $exitCode"
+        # Exit 4: the menu refused to run elevated from a folder a normal program can write (audit 2c24feed lead 1).
+        if ($exitCode -eq 4) { Set-Status -Index $idx -Text 'Refused: this folder can be changed without admin. Install with install.ps1 (Program Files).' }
+        else { Set-Status -Index $idx -Text "Exit code: $exitCode" }
     }
 }
 

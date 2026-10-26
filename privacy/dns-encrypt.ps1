@@ -80,7 +80,9 @@ Start-Sleep -Seconds 2
 $ok = Test-Resolve
 if ($ok -ne $NAMES.Count) {
     Write-Host "ROLLED BACK: only $ok of $($NAMES.Count) names resolved over DoH." -ForegroundColor Red
-    & $revert
+    # Roll back from the captured lines in memory, never by running the file back off disk: between
+    # the write and this line another program could have changed it, and this session is elevated.
+    & ([scriptblock]::Create($lines -join "`n"))
     Clear-DnsClientCache
     Stop-Transcript | Out-Null
     exit 1
