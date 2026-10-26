@@ -71,15 +71,17 @@ $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
 
-# Option definitions
+# Option definitions. A change option passes neither -AcceptRisk nor -Yes, so its own console
+# window shows NOTICE.md, asks for I ACCEPT and then asks Run it? - the GUI never accepts the
+# risk for the user (audit 2c24feed lead 2). Read-only options change nothing and skip that.
 $optionDefs = @(
     @{ Label = 'Storage report (read-only)';            Args = '-Choice 1 -AcceptRisk -NoElevate' },
     @{ Label = 'Antivirus status check (read-only)';    Args = '-Choice 2 -AcceptRisk -NoElevate' },
-    @{ Label = 'Network tune';                          Args = '-Choice 3 -AcceptRisk -Yes' },
-    @{ Label = 'Power tune';                            Args = '-Choice 4 -AcceptRisk -Yes' },
-    @{ Label = 'Component store cleanup';               Args = '-Choice 5 -AcceptRisk -Yes' },
-    @{ Label = 'Remove a third-party antivirus';        Args = '-Choice 6 -AcceptRisk -Yes' },
-    @{ Label = 'Keep every CPU core unparked';          Args = '-Choice 7 -AcceptRisk -Yes' }
+    @{ Label = 'Network tune';                          Args = '-Choice 3' },
+    @{ Label = 'Power tune';                            Args = '-Choice 4' },
+    @{ Label = 'Component store cleanup';               Args = '-Choice 5' },
+    @{ Label = 'Remove a third-party antivirus';        Args = '-Choice 6' },
+    @{ Label = 'Keep every CPU core unparked';          Args = '-Choice 7' }
 )
 
 $checkboxes = @()
