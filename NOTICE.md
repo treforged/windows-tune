@@ -33,6 +33,17 @@ at your own risk, and the author collects nothing from you or your machine.
   password manager), after a y/N prompt; `-Force` skips the prompt. Writes an
   uninstall log to `%TEMP%`. **Not reversible** by this repo - you would
   reinstall the product yourself. Needs admin.
+- **09-game-mode.ps1** - **game mode, opt-in.** While a game you list is
+  running it applies what `09-game-mode.json` lists, and undoes exactly that
+  when the game exits. With the shipped defaults it only caps the upload rate
+  of OneDrive, Google Drive and Dropbox with a Windows QoS policy (nothing is
+  stopped). If you switch them on, it can also close programs, stop services
+  and shut WSL down; a closed program can lose unsaved work. It NEVER stops
+  anti-cheat, Windows system processes or services, Defender, or your games,
+  whatever the config says. `-DryRun` changes nothing. Writes
+  `09-game-mode-revert.ps1` while it is on. `-InstallWatcher` (menu G) adds a
+  scheduled task that runs it at every sign-in - only if you choose it. Needs
+  admin, except `-DryRun`.
 
 Every script that changes something writes a `*-revert.ps1` beside itself
 first, capturing the values that were live on your machine before it ran. Run
@@ -83,8 +94,10 @@ PowerShell text file; read it before you run it.
   BitLocker, Windows Update settings, user files, browsers, or any registry
   key beyond the specific settings named above.
 - Nothing is left running: no service, no scheduled task, no startup entry, no
-  background process. Deleting the folder removes everything except the
-  changes you chose to apply - use the revert files for those.
+  background process. The one exception is game mode's watcher task, and only
+  if you install it yourself with menu G; its revert file removes it. Deleting
+  the folder removes everything except the changes you chose to apply - use
+  the revert files for those.
 
 ## Who should not run this
 

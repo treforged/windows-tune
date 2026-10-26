@@ -3,3 +3,5 @@
 *.log
 storage.txt
 evals/
+09-game-mode.json
+09-game-mode-state.json

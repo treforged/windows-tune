@@ -126,7 +126,7 @@ should not teach the habit.
 
 ## Scripts
 
-Run elevated, in order, or individually. None support `-WhatIf`. Only 01, 02 and 08
+Run elevated, in order, or individually. None support `-WhatIf` (09 has `-DryRun`). Only 01, 02, 08 and 09
 write a `*-revert.ps1` beside themselves first. 03 changes nothing. 04, 05 and 06
 write no revert file: 04's cleanup cannot be undone, and 06 removes a product.
 
@@ -140,6 +140,46 @@ write no revert file: 04's cleanup cannot be undone, and 06 removes a product.
 | `04-component-cleanup.ps1` | Checks the component store's HEALTH first and stops with repair instructions if it is damaged. Then true WinSxS size, and reclaims superseded packages. `/ResetBase` opt-in only. |
 | `05-defender-handover.ps1` | Diagnoses the "no AV at all" state; repairs what a script safely can; adds developer exclusions once protection is genuinely on, and **verifies they were actually stored**. |
 | `06-remove-third-party-av.ps1` | Fully uninstalls an MSI-based third-party AV and waits for Windows to hand protection back to Defender. Usually needs no reboot and no Tamper Protection toggle. |
+| `08-core-unpark.ps1` | Keeps every CPU core unparked (minimum cores 100%) on the active plan, AC and battery. |
+| `09-game-mode.ps1` | Game mode. While a game you list runs, pauses the background work you list, and puts it back when the game exits. See below. |
+
+### Game mode (`09-game-mode.ps1`, menu 8, 9 and G)
+
+While a listed game is running, game mode applies what its config lists, and
+undoes exactly that when the last listed game exits. **With the shipped
+defaults it only caps the upload of OneDrive, Google Drive and Dropbox** to
+1 Mbit/s with a Windows QoS policy: a big background upload is a common cause
+of ping spikes, a cap kills nothing and interrupts no sync, and a reboot clears
+it. Stopping programs (for example Docker Desktop, or Ollama to free GPU
+memory), stopping services and shutting WSL down are in the config as
+examples, switched off.
+
+- **Config:** copy `scripts\09-game-mode.defaults.json` to
+  `scripts\09-game-mode.json` and edit the copy. Game mode reads yours first,
+  and an update never replaces it. Games are matched by the game's own exe
+  name, not its launcher.
+- **Never touched, whatever the config says:** anti-cheat (Vanguard `vgc`/`vgk`,
+  EasyAntiCheat, BattlEye, FACEIT, Ricochet, PunkBuster and others), Windows
+  system processes and services (`csrss`, `wininit`, `lsass`, `services`,
+  `smss`, `winlogon`, `svchost`, `explorer`, `dwm` and others), Defender and
+  Windows Security, and any program on your game list. Those entries print
+  `REFUSED` and are skipped. Stopping anti-cheat gets you kicked at best.
+- **Preview first:** `.\scripts\09-game-mode.ps1 -DryRun` (menu 8) prints what
+  it would do and changes nothing. It needs no admin.
+- **Run it:** menu 9 (`-Watch`) watches until you close the window. Ctrl+C
+  undoes game mode before it stops. A program it stopped is asked to close
+  first, killed only if its entry says `"force": true`, and started again
+  afterwards with your normal rights.
+- **Undo:** while game mode is on, `09-game-mode-revert.ps1` names exactly what
+  it changed, read back off the machine (menu R). It removes itself once
+  everything is back. If a watcher is killed mid-game, the next run undoes the
+  leftover changes first.
+- **Start at sign-in (opt-in):** menu G (`-InstallWatcher`) registers a
+  scheduled task, `windows-tune game mode`, that runs the watcher hidden at
+  every sign-in. That is the only thing in this repo that stays running. It is
+  refused unless windows-tune is installed in Program Files, because the task
+  runs as admin. Remove it with `09-game-mode-watcher-revert.ps1` (menu R) or
+  `-RemoveWatcher`.
 
 ### Privacy scripts (`privacy\`, standalone, not in the menu yet)
 
@@ -181,7 +221,7 @@ script prints when you run it.
 
 ## Reverting
 
-Scripts 01, 02 and 08 write `<name>-revert.ps1` capturing the values that were live
+Scripts 01, 02, 08 and 09 write `<name>-revert.ps1` capturing the values that were live
 before they ran, and only when there is something to change. Run it elevated.
 04, 05 and 06 have no revert file (see the scripts table).
 Reverts are generated from your machine's actual state, not from assumed
