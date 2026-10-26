@@ -189,7 +189,7 @@ Merged in from the former net-tune repo. Run each as a file, from the repo folde
 | --- | --- |
 | `privacy\privacy-audit.ps1` | Read-only. Checks 12 telemetry, ad-ID, location, browser-cookie and DoH settings. Exit 0 all as expected, 1 drift, 2 nothing readable. |
 | `privacy\privacy-tune.ps1` | Hides your language list from websites (per user, no admin). Writes `privacy-tune-revert.ps1` first. |
-| `privacyrowser-privacy.ps1` | Chrome and Edge policy: block third-party cookies and Chrome ad-topic APIs. Run elevated. Undo: `-Undo`. Refuses to overwrite a policy it did not write. |
+| `privacy\browser-privacy.ps1` | Chrome and Edge policy: block third-party cookies and Chrome ad-topic APIs. Run elevated. Undo: `-Undo`. Refuses to overwrite a policy it did not write. |
 | `privacy\dns-encrypt.ps1` | Turns on DNS over HTTPS for 1.1.1.1 and 1.0.0.1. Run elevated. Rolls back by itself if a test lookup fails. Writes `dns-encrypt-revert.ps1` first. |
 
 ```powershell
