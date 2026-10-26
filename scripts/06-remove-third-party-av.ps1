@@ -71,7 +71,7 @@ if (-not $ProductCode) {
     )
     $found = Get-ItemProperty $keys -ErrorAction SilentlyContinue |
              Where-Object { $_.DisplayName -match [regex]::Escape($Name) } |
-             Select-Object DisplayName, DisplayVersion, UninstallString, PSChildName -Unique
+             Select-Object DisplayName, DisplayVersion, UninstallString, PSChildName, InstallLocation -Unique
 
     if (-not $found) { Write-Host "No installed product matching '$Name'." -ForegroundColor Yellow; return }
 
@@ -85,6 +85,7 @@ if (-not $ProductCode) {
         return
     }
     $ProductCode = $msi.PSChildName
+    $installDir = "$($msi.InstallLocation)".Trim().TrimEnd('\')
     $label = $msi.DisplayName
 } else {
     $label = $ProductCode
@@ -95,11 +96,17 @@ if (-not $Force) {
     if ($answer -notmatch '^y') { Write-Host 'Aborted.'; return }
 }
 
-# Close the vendor's tray apps so the MSI does not stall on a live UI.
-if ($Name) {
-    Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -match [regex]::Escape($Name) } |
-        ForEach-Object { Write-Host "  stopping $($_.Name)"; Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
-    Start-Sleep -Seconds 3
+# Close the vendor's tray apps so the MSI does not stall on a live UI. Only processes whose
+# executable lives under the product's own install folder are stopped - a name substring would
+# also hit unrelated programs (audit 2c24feed lead 5). No known folder: stop nothing, the MSI
+# handles running processes itself.
+if ($Name -and $installDir -and (Test-Path -LiteralPath $installDir)) {
+    $prefix = $installDir + '\'
+    $own = @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) })
+    foreach ($proc in $own) { Write-Host "  stopping $($proc.Name) ($($proc.Path))"; Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+    if ($own.Count) { Start-Sleep -Seconds 3 }
+} elseif ($Name) {
+    Write-Host '  install folder unknown - no processes stopped; the uninstaller closes its own.' -ForegroundColor Yellow
 }
 
 Write-Host "`n--- UNINSTALLING $ProductCode ---" -ForegroundColor Yellow
