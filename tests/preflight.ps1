@@ -642,20 +642,23 @@ if (-not $planFn20) {
     else { Fail 'Get-OptionPlan planned something with nothing checked' }
 }
 # every option's label is the menu's label for the same key, and its -Choice is that key
-$argRows20 = [regex]::Matches($guiText20, "Label = '([^']+)';\s+Args = '-Choice (\d) -AcceptRisk( -NoElevate)?( -Yes)?'")
+$argRows20 = [regex]::Matches($guiText20, "Label = '([^']+)';\s+Args = '-Choice (\d)( -AcceptRisk)?(?: -NoElevate)?( -Yes)?'")
 if ($argRows20.Count -ne 7) { Fail "windows-tune-gui.ps1 has $($argRows20.Count) option rows, expected 7 - stage 20 checked nothing" }
 foreach ($r20 in $argRows20) {
-    $label20 = $r20.Groups[1].Value; $key20 = $r20.Groups[2].Value; $yes20 = $r20.Groups[4].Value
+    $label20 = $r20.Groups[1].Value; $key20 = $r20.Groups[2].Value; $accept20 = $r20.Groups[3].Value; $yes20 = $r20.Groups[4].Value
+    if (-not $accept20 -and $r20.Value -match '-NoElevate') { Fail "GUI option $key20 passes -NoElevate without -AcceptRisk"; continue }
     $menuLine20 = ($menuText20 -split "`n") | Where-Object { $_ -match "^\s*'$key20' = " } | Select-Object -First 1
     if (-not $menuLine20 -or $menuLine20 -notmatch [regex]::Escape("label = '$label20'")) {
         Fail "GUI option $key20 label '$label20' does not match the menu row for $key20"; continue
     }
-    # a menu row with changes must be pressed with -Yes, a read-only row must not need it
+    # a row that changes the machine must leave I ACCEPT and Run it? to the person in the console:
+    # no -AcceptRisk, no -Yes (audit 2c24feed lead 2). A read-only row runs unelevated with -AcceptRisk -NoElevate.
     $menuChanges20 = ($menuText20 -split "`n") | Where-Object { $_ -match "^\s*'$key20' = " } | Out-String
     $changesRow20 = $menuChanges20 -notmatch "changes = ''"
-    if ($changesRow20 -and -not $yes20) { Fail "GUI option $key20 changes the machine but is not pressed with -Yes" }
-    elseif (-not $changesRow20 -and $yes20) { Fail "GUI option $key20 is read-only in the menu but is pressed with -Yes" }
-    else { Pass "GUI option $key20 matches menu row $key20 (label, -Choice, -Yes)" }
+    if ($yes20) { Fail "GUI option $key20 is pressed with -Yes - the GUI answers Run it? for the user" }
+    elseif ($changesRow20 -and $accept20) { Fail "GUI option $key20 changes the machine but passes -AcceptRisk - the GUI accepts the notice for the user" }
+    elseif (-not $changesRow20 -and -not $accept20) { Fail "GUI option $key20 is read-only but is not pressed with -AcceptRisk -NoElevate" }
+    else { Pass "GUI option $key20 matches menu row $key20 (label, -Choice, notice gate left to the user)" }
 }
 
 # --- stage 21: README revert claims match which scripts write a revert file ---
