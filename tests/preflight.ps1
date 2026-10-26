@@ -696,6 +696,20 @@ $aud22 = & $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'privac
 if (($LASTEXITCODE -in 0,1) -and $aud22 -match '\d+ checks, \d+ readable') { Pass "privacy scripts are portable ($seen22 checked) and privacy-audit ran (exit $LASTEXITCODE)" }
 else { Fail "privacy-audit.ps1 did not report a result (exit $LASTEXITCODE)" }
 
+# --- stage 23: 05 -Repair records a Defender value before clearing it, and leaves policy alone on a managed PC ---
+# (audit 2c24feed lead 4). A source check: -Repair writes HKLM and cannot be run here. It asserts ORDER, so a
+# Remove-ItemProperty with no capture line before it in the same loop fails.
+$src23 = Get-Content (Join-Path $repo 'scripts\05-defender-handover.ps1') -Raw
+$rm23 = [regex]::Matches($src23, 'Remove-ItemProperty \$k -Name \$n')
+if ($rm23.Count -eq 0) { Fail 'stage 23 found no Defender value clear in 05 - checked nothing' }
+foreach ($m23 in $rm23) {
+    $before23 = $src23.Substring([Math]::Max(0, $m23.Index - 400), [Math]::Min(400, $m23.Index))
+    if ($before23 -match 'Add-Content -Path \$captureLog') { Pass '05 -Repair records each Defender value before it clears it' }
+    else { Fail '05 -Repair clears a Defender value with no capture before it' }
+}
+if ($src23 -match 'PartOfDomain' -and $src23 -match "\`$managed -and \`$k -like '\*\\Policies\\\*'") { Pass '05 -Repair skips Defender POLICY keys on a domain-joined or MDM-managed PC' }
+else { Fail '05 -Repair has no domain/MDM skip for Defender policy keys' }
+
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green
 exit 0

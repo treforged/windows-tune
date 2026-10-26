@@ -112,15 +112,29 @@ if ($tamperOn) {
     Write-Host 'Manage settings > Tamper Protection. It cannot be scripted, by design.' -ForegroundColor Yellow
 }
 
+# Policy keys belong to whoever manages the machine. On a domain-joined or MDM-enrolled PC they
+# are an administrator's decision, so -Repair leaves them alone and says so (audit 2c24feed lead 4).
+$managed = $false
+try { if ((Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).PartOfDomain) { $managed = $true } } catch { }
+$enroll = Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Enrollments' -ErrorAction SilentlyContinue |
+    Where-Object { (Get-ItemProperty $_.PSPath -Name UPN -ErrorAction SilentlyContinue).UPN }
+if ($enroll) { $managed = $true }
+if ($managed) { Write-Host 'This PC is domain-joined or MDM-managed: Defender POLICY values are left as the administrator set them.' -ForegroundColor Yellow }
+
+# Every value is written to a log BEFORE it is cleared, so a cleared value can be put back by hand.
+$captureLog = Join-Path $PSScriptRoot ("05-defender-repair-{0}.log" -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
 foreach ($k in @('HKLM:\SOFTWARE\Microsoft\Windows Defender',
                  'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender',
                  'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection')) {
+    if ($managed -and $k -like '*\Policies\*') { continue }
     if (Test-Path $k) {
         foreach ($n in @('DisableAntiSpyware', 'DisableAntiVirus', 'DisableRealtimeMonitoring',
                          'DisableOnAccessProtection', 'DisableBehaviorMonitoring')) {
-            if ($null -ne (Get-ItemProperty $k -Name $n -ErrorAction SilentlyContinue).$n) {
+            $v = (Get-ItemProperty $k -Name $n -ErrorAction SilentlyContinue).$n
+            if ($null -ne $v) {
+                Add-Content -Path $captureLog -Value "$k|$n|$v" -Encoding ascii
                 Remove-ItemProperty $k -Name $n -Force -ErrorAction SilentlyContinue
-                Write-Host "  cleared $n"
+                Write-Host "  cleared $n (was $v; recorded in $captureLog)"
             }
         }
     }
