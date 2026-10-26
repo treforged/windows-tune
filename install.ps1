@@ -21,7 +21,9 @@
 
 .PARAMETER Sha256
     Expected SHA256 of the zip. A download is always checked against the
-    pinned value below; pass this to check a -FromZip zip as well.
+    pinned value below. A -FromZip zip is checked against this value, or,
+    when it is not given, against the pinned release hash - an unchecked
+    zip is never unpacked.
 
 .PARAMETER Launch
     Open the windows-tune menu after installing. Off by default.
@@ -68,7 +70,9 @@ try {
     if ($FromZip) {
         if (-not (Test-Path $FromZip)) { throw "Zip not found: $FromZip" }
         $zipPath = (Resolve-Path $FromZip).Path
-        if ($Sha256) { Assert-ZipHash $zipPath $Sha256 }
+        # Never unpack and Unblock-File an unchecked zip: with no -Sha256, the zip must be
+        # the pinned release itself (audit 2c24feed lead 3).
+        if ($Sha256) { Assert-ZipHash $zipPath $Sha256 } else { Assert-ZipHash $zipPath $ReleaseSha256 }
     } else {
         # Fail before any network call when this copy carries no pin.
         if ($ReleaseSha256 -notmatch '^[0-9a-fA-F]{64}$') { throw "This copy of install.ps1 has no release hash pinned. Use the copy on the main branch, or -FromZip." }

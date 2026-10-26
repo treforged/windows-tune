@@ -164,7 +164,9 @@ Set-Content -Path (Join-Path $inDir 'install-from-zip.ps1') -Encoding UTF8 -Valu
 $tmp = Join-Path $env:TEMP 'wt-unpack'
 Expand-Archive -Path 'C:\in\windows-tune.zip' -DestinationPath $tmp -Force
 $inner = @(Get-ChildItem $tmp -Directory)[0].FullName
-& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $inner 'install.ps1') -FromZip 'C:\in\windows-tune.zip'
+# A zip built from the working tree is not the pinned release, so install.ps1 needs its hash.
+$hash = (Get-FileHash -Algorithm SHA256 'C:\in\windows-tune.zip').Hash
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $inner 'install.ps1') -FromZip 'C:\in\windows-tune.zip' -Sha256 $hash
 '@
 
 # ------------------------------------------------------------------ .wsb -----

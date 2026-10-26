@@ -148,6 +148,14 @@ try {
     if (Test-Path (Join-Path $badTarget 'windows-tune.ps1')) { Fail 'wrong-hash install still unpacked files' } else { Pass 'wrong-hash install unpacked nothing' }
     Remove-Item -Recurse -Force $badTarget -ErrorAction SilentlyContinue
 
+    # 7b. NO hash given: a zip that is not the pinned release must REFUSE too, never unpack unchecked
+    $noHashTarget = Join-Path $env:TEMP ('wt-nohash-' + [Guid]::NewGuid())
+    $out = & $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'install.ps1') -FromZip $zip -Path $noHashTarget
+    if ($LASTEXITCODE -eq 1 -and ($out -join ' ') -match 'SHA256 mismatch') { Pass 'install.ps1 -FromZip with no -Sha256 refuses a zip that is not the pinned release' }
+    else { Fail "no-hash install of a non-release zip was not refused: exit $LASTEXITCODE`n$out" }
+    if (Test-Path (Join-Path $noHashTarget 'windows-tune.ps1')) { Fail 'no-hash install still unpacked files' } else { Pass 'no-hash install unpacked nothing' }
+    Remove-Item -Recurse -Force $noHashTarget -ErrorAction SilentlyContinue
+
     $goodHash = (Get-FileHash -Algorithm SHA256 $zip).Hash
     $out = & $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'install.ps1') -FromZip $zip -Path $target -Sha256 $goodHash
     if ($LASTEXITCODE -ne 0) { Fail "install.ps1 exit $LASTEXITCODE`n$out" } else { Pass 'install.ps1 -FromZip with the right SHA256 exit 0' }
