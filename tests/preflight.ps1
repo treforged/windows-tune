@@ -710,6 +710,19 @@ foreach ($m23 in $rm23) {
 if ($src23 -match 'PartOfDomain' -and $src23 -match "\`$managed -and \`$k -like '\*\\Policies\\\*'") { Pass '05 -Repair skips Defender POLICY keys on a domain-joined or MDM-managed PC' }
 else { Fail '05 -Repair has no domain/MDM skip for Defender policy keys' }
 
+# --- stage 24: the elevated menu can tell a user-writable folder from an admin-only one (audit 2c24feed lead 1) ---
+$errors24 = $null
+$ast24 = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $repo 'windows-tune.ps1'), [ref]$null, [ref]$errors24)
+$fn24 = $ast24.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Test-UserWritable' }, $true)
+if (-not $fn24) { Fail 'windows-tune.ps1 has no Test-UserWritable - stage 24 checked nothing' }
+else {
+    . ([scriptblock]::Create($fn24.Extent.Text))
+    if (Test-UserWritable $env:LOCALAPPDATA) { Pass 'Test-UserWritable: %LOCALAPPDATA% (the default install) reads as user-writable' }
+    else { Fail 'Test-UserWritable says %LOCALAPPDATA% is not user-writable - the warning would never show' }
+    if (-not (Test-UserWritable (Join-Path $env:SystemRoot 'System32'))) { Pass 'Test-UserWritable: System32 (admin-only) reads as not user-writable' }
+    else { Fail 'Test-UserWritable says System32 is user-writable - the warning would cry wolf everywhere' }
+}
+
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green
 exit 0

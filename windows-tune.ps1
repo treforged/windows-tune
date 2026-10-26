@@ -75,6 +75,27 @@ if (-not $isAdmin) {
     }
 }
 
+# ---- Elevated from a folder a normal program can write? Say so (audit 2c24feed lead 1). -------
+# Elevated, this menu runs the scripts and revert files beside it. If the folder is writable
+# without admin (the default %LOCALAPPDATA% install is), any program running as you could swap a
+# script before you click Yes on UAC. Installing under Program Files closes that.
+function Test-UserWritable([string]$Dir) {
+    try { $acl = Get-Acl -LiteralPath $Dir -ErrorAction Stop } catch { return $false }
+    $me = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    # 0x6 = WriteData (create files) | AppendData (create folders). Modify also carries READ bits, so it cannot be the test.
+    $weak = @('S-1-1-0', 'S-1-5-11', 'S-1-5-32-545', $me)
+    foreach ($ace in $acl.Access) {
+        if ($ace.AccessControlType -ne 'Allow') { continue }
+        try { $sid = $ace.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value } catch { continue }
+        if ($weak -contains $sid -and ([int64]$ace.FileSystemRights -band 0x6)) { return $true }
+    }
+    return $false
+}
+if ($isAdmin -and (Test-UserWritable $here)) {
+    Write-Host "Note: $here can be written without admin rights, so a program running as you could change these scripts before they run elevated." -ForegroundColor Yellow
+    Write-Host "      Safer: from an ELEVATED PowerShell, .\install.ps1 -Path `"$env:ProgramFiles\windows-tune`"" -ForegroundColor Yellow
+}
+
 # ---- The menu. Script names and arguments are fixed here, never typed. ------
 $scriptsDir = Join-Path $here 'scripts'
 $menu = [ordered]@{
