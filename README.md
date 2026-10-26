@@ -110,6 +110,16 @@ notepad .\install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
+**Safer location:** the menu runs its scripts elevated, and `%LOCALAPPDATA%`
+(or any folder you extracted to) can be written by any program running as you,
+so one could change a script before you click Yes on the admin prompt. The menu
+says so when it starts elevated from such a folder. To close that, install from an
+**elevated** PowerShell into a folder only administrators can write:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Path "$env:ProgramFiles\windows-tune"
+```
+
 There is deliberately no `irm <url> | iex` one-liner. Download-and-execute in
 one step is the ClickFix malware pattern, Windows Defender flags that exact
 string as `Trojan:Win32/ClickFix.PM!MTB`, and a tool about undoing bad tweaks
