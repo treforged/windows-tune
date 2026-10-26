@@ -95,12 +95,9 @@ Read [NOTICE.md](NOTICE.md) first. It is short and it is the whole risk and
 privacy story; the menu shows it and will not run anything until you type
 `I ACCEPT`.
 
-**Easiest:** Code > Download ZIP, extract it anywhere, double-click
-`Run-WindowsTune.cmd`. It opens the menu, asks for administrator rights once,
-and runs one script at a time with a y/N confirmation before every change.
-
-**From PowerShell:** download the installer, read it, then run it. It puts the
-repo in `%LOCALAPPDATA%\windows-tune` and runs nothing. It downloads one
+**Recommended:** download the installer, read it, then run it from an
+**elevated** PowerShell. It puts the repo in `%ProgramFiles%\windows-tune`,
+a folder only administrators can write, and runs nothing. It downloads one
 pinned release, not the moving `main` branch, and refuses the zip if its SHA256
 does not match the value written in the script:
 
@@ -110,15 +107,17 @@ notepad .\install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-**Safer location:** the menu runs its scripts elevated, and `%LOCALAPPDATA%`
-(or any folder you extracted to) can be written by any program running as you,
-so one could change a script before you click Yes on the admin prompt. The menu
-says so when it starts elevated from such a folder. To close that, install from an
-**elevated** PowerShell into a folder only administrators can write:
+Then double-click `Run-WindowsTune.cmd` in that folder. It opens the menu, asks
+for administrator rights once, and runs one script at a time with a y/N
+confirmation before every change.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Path "$env:ProgramFiles\windows-tune"
-```
+**Why Program Files:** the menu runs its scripts and revert files as
+administrator. In a folder a normal program can write (`%LOCALAPPDATA%`,
+Downloads, anywhere you extract a zip), malware running as you could swap a
+script before you click Yes on the admin prompt. So the menu **will not
+elevate** from such a folder, and an elevated run there refuses with exit 4.
+From a zip extracted anywhere, the read-only options (storage report,
+antivirus status, revert list) still work; for the rest, install as above.
 
 There is deliberately no `irm <url> | iex` one-liner. Download-and-execute in
 one step is the ClickFix malware pattern, Windows Defender flags that exact
@@ -134,7 +133,7 @@ write no revert file: 04's cleanup cannot be undone, and 06 removes a product.
 | Script | Does |
 | --- | --- |
 | `windows-tune.ps1` / `Run-WindowsTune.cmd` | The menu. Shows NOTICE.md, requires `I ACCEPT`, elevates once, confirms every change, lists revert files. |
-| `install.ps1` | Downloads one pinned release zip, checks its SHA256, unpacks it to `%LOCALAPPDATA%\windows-tune` and unblocks it. Runs nothing. |
+| `install.ps1` | Downloads one pinned release zip, checks its SHA256, unpacks it to `%ProgramFiles%\windows-tune` (run it elevated) and unblocks it. Runs nothing. |
 | `01-network-tune.ps1` | Restores auto-tuning, RSS, RSC and NIC offloads; disables NIC power saving. Tier A applies live; Tier B stages until `-BounceAdapter` or reboot. |
 | `02-power-tune.ps1` | Minimum processor state → 0%, ceiling untouched. |
 | `03-storage-report.ps1` | Read-only. Largest folders per drive; every Steam game with **real** last-played dates; Epic/Xbox by size. |

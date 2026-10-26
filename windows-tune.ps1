@@ -11,6 +11,11 @@
     It runs nothing on its own. Every option calls one of the existing scripts
     with fixed arguments; nothing you type is turned into a command.
 
+    It elevates only from a folder that needs administrator rights to change
+    (install.ps1 puts it in Program Files). From any other folder a normal
+    program could swap a script before it runs as admin, so there it runs the
+    read-only options only, and an elevated run refuses with exit 4.
+
 .PARAMETER Choice
     Run one menu option without showing the menu, then exit: 1-7, R or Q.
 
@@ -61,11 +66,79 @@ if (-not $AcceptRisk) {
     }
 }
 
+# ---- Elevated code runs only from a folder a normal program cannot write (audit 2c24feed lead 1). ----
+# Elevated, this menu runs windows-tune.ps1, the scripts and the *-revert.ps1 files beside it. If any
+# of them, or a folder above them, can be changed without admin rights (the old %LOCALAPPDATA% install,
+# or any folder you extracted the zip to), a program running as you could plant or swap a script and
+# your Yes on the admin prompt would run it. So from such a folder the menu does not elevate, and an
+# elevated run refuses. Install under Program Files (install.ps1, from an elevated PowerShell) to fix it.
+function Test-UserWritable([string]$Path, [int64]$Mask = 0x500D0046) {
+    # $true when a program running as you WITHOUT admin could change, replace or re-permission $Path.
+    # Unreadable counts as writable: a check that cannot see the ACL must not vouch for it.
+    # Default mask: WriteData 0x2, AppendData 0x4, DeleteChild 0x40, Delete 0x10000, WriteDac 0x40000,
+    # WriteOwner 0x80000, GenericAll 0x10000000, GenericWrite 0x40000000. Modify also carries READ bits,
+    # so it cannot be the test.
+    try { $acl = Get-Acl -LiteralPath $Path -ErrorAction Stop } catch { return $true }
+    $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+    # The SIDs a non-elevated process of this user holds: the user and every token group, minus the
+    # two UAC strips from the filtered token (Administrators, local-account-and-admin) and the labels.
+    $weak = @($id.User.Value) + @($id.Groups | ForEach-Object { $_.Value } | Where-Object { $_ -notin 'S-1-5-32-544', 'S-1-5-114' -and $_ -notlike 'S-1-16-*' })
+    try { $owner = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value } catch { return $true }
+    if ($weak -contains $owner) { return $true }   # an owner can always rewrite the DACL
+    foreach ($ace in $acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) {
+        if ($ace.AccessControlType -ne 'Allow') { continue }
+        if ($ace.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) { continue }
+        if ($weak -contains $ace.IdentityReference.Value -and ([int64]$ace.FileSystemRights -band $Mask)) { return $true }
+    }
+    return $false
+}
+function Get-UnsafeRunReason([string]$File) {
+    # $null when $File, its folder and every folder above it are admin-only; otherwise a sentence
+    # naming the first path a normal program could use to change what runs.
+    try { $full = [IO.Path]::GetFullPath($File) } catch { return "$File is not a usable path" }
+    if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { return "$full does not exist" }
+    if (Test-UserWritable $full) { return "$full can be changed without admin rights" }
+    $dir = Split-Path -Parent $full
+    if (Test-UserWritable $dir) { return "$dir lets a program running as you add or swap files in it" }
+    # Above that, only the rights that let someone rename or replace a folder inside it matter:
+    # DeleteChild 0x40, WriteDac, WriteOwner, GenericAll. Creating a new folder in C:\ is not enough.
+    $p = Split-Path -Parent $dir
+    while ($p) {
+        if (Test-UserWritable $p 0x100C0040) { return "$p lets a program running as you rename or replace the folders inside it" }
+        $p = Split-Path -Parent $p
+    }
+    return $null
+}
+function Invoke-Checked([string]$File, [hashtable]$Arguments = @{}, [switch]$Elevated) {
+    # The ONLY place this menu runs another script. Elevated, it re-checks the exact file first, so a
+    # revert file or script that is writable on its own is refused even inside an admin-only folder.
+    if ($Elevated) {
+        $why = Get-UnsafeRunReason $File
+        if ($why) {
+            Write-Host "REFUSED: $why. It was not run." -ForegroundColor Red
+            return
+        }
+    }
+    & $File @Arguments
+}
+$installHint = "From an ELEVATED PowerShell: .\install.ps1   (installs to $env:ProgramFiles\windows-tune, which only administrators can write)"
+
 # ---- Elevation, once. -------------------------------------------------------
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$selfRisk = Get-UnsafeRunReason $PSCommandPath
+if ($isAdmin -and $selfRisk) {
+    Write-Host "REFUSED to run elevated: $selfRisk, so a program running as you could change what runs as administrator." -ForegroundColor Red
+    Write-Host "  $installHint" -ForegroundColor Yellow
+    Write-Host 'Nothing was run.' -ForegroundColor Yellow
+    exit 4
+}
 if (-not $isAdmin) {
     if ($NoElevate) {
         Write-Host 'Not elevated: only the storage report (1), the antivirus status check (2) and the revert list (R) will work.' -ForegroundColor Yellow
+    } elseif ($selfRisk) {
+        Write-Host "Not elevating: $selfRisk, so a program running as you could change what runs as administrator." -ForegroundColor Yellow
+        Write-Host 'Only the storage report (1), the antivirus status check (2) and the revert list (R) will work from here.' -ForegroundColor Yellow
+        Write-Host "  $installHint" -ForegroundColor Yellow
     } else {
         $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-AcceptRisk')
         if ($Choice) { $argList += @('-Choice', $Choice) }
@@ -73,27 +146,6 @@ if (-not $isAdmin) {
         Start-Process powershell.exe -Verb RunAs -ArgumentList $argList
         exit 0
     }
-}
-
-# ---- Elevated from a folder a normal program can write? Say so (audit 2c24feed lead 1). -------
-# Elevated, this menu runs the scripts and revert files beside it. If the folder is writable
-# without admin (the default %LOCALAPPDATA% install is), any program running as you could swap a
-# script before you click Yes on UAC. Installing under Program Files closes that.
-function Test-UserWritable([string]$Dir) {
-    try { $acl = Get-Acl -LiteralPath $Dir -ErrorAction Stop } catch { return $false }
-    $me = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-    # 0x6 = WriteData (create files) | AppendData (create folders). Modify also carries READ bits, so it cannot be the test.
-    $weak = @('S-1-1-0', 'S-1-5-11', 'S-1-5-32-545', $me)
-    foreach ($ace in $acl.Access) {
-        if ($ace.AccessControlType -ne 'Allow') { continue }
-        try { $sid = $ace.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value } catch { continue }
-        if ($weak -contains $sid -and ([int64]$ace.FileSystemRights -band 0x6)) { return $true }
-    }
-    return $false
-}
-if ($isAdmin -and (Test-UserWritable $here)) {
-    Write-Host "Note: $here can be written without admin rights, so a program running as you could change these scripts before they run elevated." -ForegroundColor Yellow
-    Write-Host "      Safer: from an ELEVATED PowerShell, .\install.ps1 -Path `"$env:ProgramFiles\windows-tune`"" -ForegroundColor Yellow
 }
 
 # ---- The menu. Script names and arguments are fixed here, never typed. ------
@@ -128,7 +180,7 @@ function Show-RevertFiles {
     if ($pick -notmatch '^\d+$' -or [int]$pick -lt 1 -or [int]$pick -gt $files.Count) { Write-Host 'Back to the menu.'; return }
     $file = $files[[int]$pick - 1]
     if ((Read-Host "Run $($file.Name)? [y/N]") -ne 'y') { Write-Host 'Skipped.' -ForegroundColor Yellow; return }
-    try { & $file.FullName } catch { Write-Host "Revert failed: $($_.Exception.Message)" -ForegroundColor Red }
+    try { Invoke-Checked $file.FullName -Elevated:$isAdmin } catch { Write-Host "Revert failed: $($_.Exception.Message)" -ForegroundColor Red }
 }
 
 $once = [bool]$Choice
@@ -163,7 +215,7 @@ do {
     # (2026-09-01). Named splatting is the form that reaches a [switch].
     $scriptArgs = $item.args
     try {
-        & $scriptPath @scriptArgs
+        Invoke-Checked $scriptPath $scriptArgs -Elevated:$isAdmin
     } catch {
         Write-Host "$($item.name) failed: $($_.Exception.Message)" -ForegroundColor Red
     }
