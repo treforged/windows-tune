@@ -640,10 +640,21 @@ if (-not $planFn20) {
     } else { Fail "Get-OptionPlan wrong for options 1 and 4: count=$($p20.Count)" }
     if (@(Get-OptionPlan -Checked @($false,$false,$false,$false,$false,$false)).Count -eq 0) { Pass 'Get-OptionPlan with nothing checked plans nothing' }
     else { Fail 'Get-OptionPlan planned something with nothing checked' }
+    # rows 8-10 are game mode: 8 the read-only preview, 9 and 10 change the machine
+    $p20 = @(Get-OptionPlan -Checked @($false,$false,$false,$false,$false,$false,$false,$true,$true,$true))
+    if ($p20.Count -eq 3 -and -not $p20[0].Changes -and $p20[1].Changes -and $p20[2].Changes) { Pass 'Get-OptionPlan marks the game mode preview read-only and watch / start-at-sign-in as changes' }
+    else { Fail "Get-OptionPlan wrong for the game mode rows: $(($p20 | ForEach-Object { "$($_.Choice)=$($_.Changes)" }) -join ' ')" }
 }
 # every option's label is the menu's label for the same key, and its -Choice is that key
-$argRows20 = [regex]::Matches($guiText20, "Label = '([^']+)';\s+Args = '-Choice (\d)( -AcceptRisk)?(?: -NoElevate)?( -Yes)?'")
-if ($argRows20.Count -ne 7) { Fail "windows-tune-gui.ps1 has $($argRows20.Count) option rows, expected 7 - stage 20 checked nothing" }
+$argRows20 = [regex]::Matches($guiText20, "Label = '([^']+)';\s+Args = '-Choice ([0-9A-Z])( -AcceptRisk)?(?: -NoElevate)?( -Yes)?'")
+if ($argRows20.Count -ne 10) { Fail "windows-tune-gui.ps1 has $($argRows20.Count) option rows, expected 10 - stage 20 checked nothing" }
+# and the other way round: every menu row that runs a script has a GUI row, so no action exists in one surface only
+$menuKeys20 = @([regex]::Matches($menuText20, "(?m)^\s*'([0-9A-Z])' = @\{ name = '[^']+\.ps1'") | ForEach-Object { $_.Groups[1].Value })
+$guiKeys20 = @($argRows20 | ForEach-Object { $_.Groups[2].Value })
+$missing20 = @($menuKeys20 | Where-Object { $guiKeys20 -notcontains $_ })
+if ($menuKeys20.Count -eq 0) { Fail 'stage 20 found no script rows in the menu - checked nothing' }
+elseif ($missing20.Count) { Fail "menu option(s) $($missing20 -join ', ') have no row in the click-install window" }
+else { Pass "every one of the $($menuKeys20.Count) menu options that runs a script is also in the click-install window" }
 foreach ($r20 in $argRows20) {
     $label20 = $r20.Groups[1].Value; $key20 = $r20.Groups[2].Value; $accept20 = $r20.Groups[3].Value; $yes20 = $r20.Groups[4].Value
     if (-not $accept20 -and $r20.Value -match '-NoElevate') { Fail "GUI option $key20 passes -NoElevate without -AcceptRisk"; continue }
@@ -670,11 +681,11 @@ $revertScripts21 = @(Get-ChildItem (Join-Path $repo 'scripts') -Filter '0*.ps1' 
 ]*'[^']*-revert\.ps1'"
 } | ForEach-Object { $_.Name.Substring(0,2) } | Sort-Object)
 $readme21 = Get-Content (Join-Path $repo 'README.md') -Raw
-$claimOk21 = $readme21 -match 'Only 01, 02 and 08\s+write a `\*-revert\.ps1`'
+$claimOk21 = $readme21 -match 'Only 01, 02, 08 and 09\s+write a `\*-revert\.ps1`'
 if ($revertScripts21.Count -eq 0) { Fail 'stage 21 found no script that writes a revert file - checked nothing' }
-elseif (($revertScripts21 -join ',') -ne '01,02,08') { Fail "scripts that write a revert file are $($revertScripts21 -join ','), expected 01,02,08" }
-elseif (-not $claimOk21) { Fail 'README does not state that only 01 and 02 write a revert file' }
-else { Pass 'only 01, 02 and 08 write a revert file, and the README says so' }
+elseif (($revertScripts21 -join ',') -ne '01,02,08,09') { Fail "scripts that write a revert file are $($revertScripts21 -join ','), expected 01,02,08,09" }
+elseif (-not $claimOk21) { Fail 'README does not state that only 01, 02, 08 and 09 write a revert file' }
+else { Pass 'only 01, 02, 08 and 09 write a revert file, and the README says so' }
 
 # --- stage 22: privacy\ scripts (imported from net-tune) are portable and the audit runs --
 # Each script must exist, be ASCII, and carry nothing from the author's PC. The
@@ -790,6 +801,239 @@ $runsRevert25 = @($src25 | Select-String -Pattern '&\s*\$revert\b')
 if ($src25.Count -eq 0) { Fail 'stage 25g scanned no scripts - checked nothing' }
 elseif ($runsRevert25.Count) { foreach ($h25 in $runsRevert25) { Fail "$($h25.Filename):$($h25.LineNumber) runs its revert file back off disk" } }
 else { Pass "no script runs a just-written revert file back off disk ($($src25.Count) scanned)" }
+
+# --- stage 26: game mode (09) never touches anti-cheat or Windows itself, and its undo undoes what it did --------
+# The pure parts are lifted by the Parser and CALLED. Enter and restore are CALLED too, against stand-in
+# cmdlets that only record what they were asked to do, so nothing on this machine is stopped or capped.
+# Then the real script is RUN with -DryRun from a scratch copy, and -InstallWatcher -DryRun must refuse there.
+$gmPath26 = Join-Path $repo 'scripts\09-game-mode.ps1'
+$errors = $null
+$gmAst26 = [System.Management.Automation.Language.Parser]::ParseFile($gmPath26, [ref]$null, [ref]$errors)
+$fnNames26 = 'Test-GameModeProtected', 'ConvertTo-GameModeName', 'Read-GameModeConfig', 'Get-GameModePlan', 'Get-GameModeStep',
+             'ConvertTo-PsLiteral', 'New-GameModeRevertLines', 'Read-GameModeState', 'Write-GameModeLog', 'Save-GameModeRecord',
+             'Clear-GameModeRecord', 'Invoke-GameModeEnter', 'Invoke-GameModeRestore'
+$fns26 = @($gmAst26.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $fnNames26 -contains $n.Name }, $false))
+$consts26 = @($gmAst26.FindAll({ param($n) $n -is [System.Management.Automation.Language.AssignmentStatementAst] -and $n.Left -is [System.Management.Automation.Language.VariableExpressionAst] -and $n.Left.VariablePath.UserPath -in 'NAME_RE', 'POLICY_PREFIX' }, $false))
+if ($errors.Count -or $fns26.Count -ne $fnNames26.Count -or $consts26.Count -ne 2) {
+    Fail "09-game-mode.ps1: found $($fns26.Count) of $($fnNames26.Count) functions and $($consts26.Count) of 2 constants - stage 26 checked nothing"
+} else {
+    foreach ($c26 in $consts26) { . ([scriptblock]::Create($c26.Extent.Text)) }
+    foreach ($f26 in $fns26) { . ([scriptblock]::Create($f26.Extent.Text)) }
+
+    # 26a. the hard denylist. Each of these must be refused whatever a config says.
+    $mustRefuse26 = @(
+        @('vgc', 'Process'), @('vgk', 'Process'), @('vgtray.exe', 'Process'), @('EasyAntiCheat.exe', 'Process'), @('EasyAntiCheat_EOS', 'Process'),
+        @('BEService', 'Process'), @('BEService_x64.exe', 'Process'), @('FACEIT', 'Process'), @('FACEITClient', 'Process'), @('faceitservice', 'Process'),
+        @('Ricochet', 'Process'), @('randgrid', 'Process'), @('PnkBstrA', 'Process'), @('EAAntiCheat.GameService', 'Process'),
+        @('csrss', 'Process'), @('wininit', 'Process'), @('lsass.exe', 'Process'), @('services', 'Process'), @('smss', 'Process'),
+        @('winlogon', 'Process'), @('svchost', 'Process'), @('explorer.exe', 'Process'), @('dwm', 'Process'), @('MsMpEng', 'Process'),
+        @('SecurityHealthService', 'Process'), @('vgc.exe', 'App'), @('lsass.exe', 'App'),
+        @('vgc', 'Service'), @('vgk', 'Service'), @('EasyAntiCheat', 'Service'), @('EasyAntiCheat_EOS', 'Service'), @('BEService', 'Service'),
+        @('FACEIT', 'Service'), @('WinDefend', 'Service'), @('WdNisSvc', 'Service'), @('Winmgmt', 'Service'), @('mpssvc', 'Service'), @('EventLog', 'Service')
+    )
+    $leaks26 = @($mustRefuse26 | Where-Object { -not (Test-GameModeProtected $_[0] $_[1]) } | ForEach-Object { "$($_[1]) $($_[0])" })
+    if ($leaks26.Count) { Fail "game mode would touch protected names: $($leaks26 -join ', ')" }
+    else { Pass "game mode refuses all $($mustRefuse26.Count) anti-cheat, system and security names it is handed" }
+    # control: the denylist does not refuse everything, or 26a proved nothing
+    $mayTouch26 = @(@('notepad', 'Process'), @('Docker Desktop', 'Process'), @('ollama', 'Process'), @('OneDrive.exe', 'App'), @('GoogleDriveFS.exe', 'App'), @('Spooler', 'Service'), @('com.docker.service', 'Service'))
+    $over26 = @($mayTouch26 | Where-Object { Test-GameModeProtected $_[0] $_[1] } | ForEach-Object { "$($_[1]) $($_[0])" })
+    if ($over26.Count) { Fail "game mode refuses ordinary programs: $($over26 -join ', ')" } else { Pass "control: $($mayTouch26.Count) ordinary programs and services are allowed" }
+
+    # 26b. a hostile config: protected names and the game itself in the stop lists. The plan must refuse every one out loud.
+    $hostile26 = @'
+{ "games": ["cs2.exe"],
+  "stopProcesses": [ {"name":"vgc"}, {"name":"EasyAntiCheat_EOS.exe"}, {"name":"BEService"}, {"name":"FACEITClient"}, {"name":"lsass"},
+                     {"name":"explorer.exe"}, {"name":"svchost"}, {"name":"MsMpEng"}, {"name":"cs2"}, {"name":"fakeapp"}, {"name":"offapp", "enabled": false} ],
+  "stopServices": [ {"name":"vgk"}, {"name":"WinDefend"}, {"name":"Winmgmt"}, {"name":"fakesvc"} ],
+  "uploadCaps": [ {"app":"vgc.exe","bitsPerSecond":1000000}, {"app":"fakesync.exe","bitsPerSecond":1000000} ] }
+'@
+    try {
+        $cfg26 = Read-GameModeConfig $hostile26
+        $plan26 = @(Get-GameModePlan -Config $cfg26 -Running @('vgc', 'easyanticheat_eos', 'beservice', 'faceitclient', 'lsass', 'explorer', 'svchost', 'msmpeng', 'cs2', 'fakeapp') `
+                     -ServiceState @{ vgk = 'Running'; windefend = 'Running'; winmgmt = 'Running'; fakesvc = 'Running' } -ExistingPolicies @())
+        $acting26 = @($plan26 | Where-Object { $_.Action -in 'Stop', 'Cap', 'Shutdown' } | ForEach-Object { "$($_.Kind):$($_.Name)" } | Sort-Object)
+        $refused26 = @($plan26 | Where-Object { $_.Action -eq 'Refused' })
+        if (($acting26 -join ',') -eq 'Cap:fakesync.exe,Process:fakeapp,Service:fakesvc' -and $refused26.Count -eq 13) {
+            Pass 'a hostile config: 13 protected or game entries REFUSED, only the 3 ordinary ones planned, the disabled one ignored'
+        } else { Fail "hostile config planned [$($acting26 -join ', ')] and refused $($refused26.Count), expected the 3 ordinary entries and 13 refusals" }
+        if (@($plan26 | Where-Object { $_.Name -eq 'cs2' -and $_.Action -eq 'Refused' -and $_.Why -match 'game list' }).Count -eq 1) { Pass 'a stop entry naming a listed game is refused' }
+        else { Fail 'a stop entry naming a listed game was not refused' }
+        $plan26b = @(Get-GameModePlan -Config $cfg26 -Running @() -ServiceState @{ fakesvc = 'Stopped' } -ExistingPolicies @('windows-tune game mode fakesync.exe'))
+        if (@($plan26b | Where-Object { $_.Action -in 'Stop', 'Cap', 'Shutdown' }).Count -eq 0) { Pass 'nothing running, service stopped, cap present -> nothing planned (idempotent)' }
+        else { Fail 'an already-applied state still plans changes' }
+    } catch { Fail "the hostile config could not be planned: $($_.Exception.Message)" }
+
+    # 26c. a config that would put code into the revert file, or is otherwise unusable, is refused before anything runs
+    $bad26 = [ordered]@{
+        'no games'           = '{ "games": [] }'
+        'a quote in a name'  = '{ "games": ["x.exe"], "stopProcesses": [ {"name": "a''b"} ] }'
+        'a ; in a name'      = '{ "games": ["x.exe"], "stopServices": [ {"name": "a; Remove-Item C:\\x"} ] }'
+        'a $( in a name'     = '{ "games": ["x.exe"], "stopProcesses": [ {"name": "$(calc)"} ] }'
+        'a cap below 64k'    = '{ "games": ["x.exe"], "uploadCaps": [ {"app": "a.exe", "bitsPerSecond": 10} ] }'
+        'a cap app no .exe'  = '{ "games": ["x.exe"], "uploadCaps": [ {"app": "a", "bitsPerSecond": 1000000} ] }'
+        'poll 0 seconds'     = '{ "games": ["x.exe"], "pollSeconds": 0 }'
+        'not JSON'           = '{ games: '
+    }
+    foreach ($k26 in $bad26.Keys) {
+        try { [void](Read-GameModeConfig $bad26[$k26]); Fail "game mode config with $k26 was accepted" }
+        catch { Pass "game mode config with $k26 is refused" }
+    }
+
+    # 26d. the shipped defaults: valid, generic, and they stop nothing unless the user switches an entry on
+    $defPath26 = Join-Path $repo 'scripts\09-game-mode.defaults.json'
+    $defRaw26 = Get-Content -LiteralPath $defPath26 -Raw
+    try {
+        $def26 = Read-GameModeConfig $defRaw26
+        if ($def26.Games.Count -ge 5 -and $def26.StopProcesses.Count -eq 0 -and $def26.StopServices.Count -eq 0 -and -not $def26.WslShutdown -and $def26.UploadCaps.Count -ge 1) {
+            Pass "shipped defaults: $($def26.Games.Count) games, $($def26.UploadCaps.Count) upload caps, and every stop entry is off"
+        } else { Fail "shipped defaults switch on a stop entry or list too few games (games=$($def26.Games.Count) procs=$($def26.StopProcesses.Count) svcs=$($def26.StopServices.Count) wsl=$($def26.WslShutdown))" }
+    } catch { Fail "shipped defaults do not load: $($_.Exception.Message)" }
+    $personal26 = '(?i)tvonh|claude|\bdesk\b|\\Users\\|Sam Game Mode|SamGameMode'
+    foreach ($n26 in '09-game-mode.ps1', '09-game-mode.defaults.json') {
+        $t26 = Get-Content -LiteralPath (Join-Path $repo "scripts\$n26") -Raw
+        if ($t26 -match $personal26) { Fail "$n26 carries personal text: $($Matches[0])" }
+        elseif ($t26 -match '[^\x00-\x7F]') { Fail "$n26 has non-ASCII characters" }
+        else { Pass "$n26 is ASCII and carries no personal paths or names" }
+    }
+    if ('C:\Users\x\Desktop' -notmatch $personal26) { Fail 'stage 26 personal-text detector missed a planted path - it proved nothing' }
+
+    # 26e. the watcher's decision
+    $steps26 = @((Get-GameModeStep $true $false), (Get-GameModeStep $false $true), (Get-GameModeStep $true $true), (Get-GameModeStep $false $false)) -join ','
+    if ($steps26 -eq 'enter,restore,none,none') { Pass 'Get-GameModeStep: enter when a game starts, restore when it ends, nothing otherwise' }
+    else { Fail "Get-GameModeStep gave $steps26, expected enter,restore,none,none" }
+
+    # 26f. the revert file undoes exactly what was applied, newest first, parses, and never stops anything
+    $applied26 = @(
+        [pscustomobject]@{ Kind = 'Cap';     Name = 'fakesync.exe'; Path = $null; Restart = $false; PolicyName = 'windows-tune game mode fakesync.exe' }
+        [pscustomobject]@{ Kind = 'Service'; Name = 'fakesvc';      Path = $null; Restart = $false; PolicyName = '' }
+        [pscustomobject]@{ Kind = 'Process'; Name = 'fakeapp';      Path = "C:\Program Files\it's fake\fakeapp.exe"; Restart = $true; PolicyName = '' }
+        [pscustomobject]@{ Kind = 'Process'; Name = 'norestart';    Path = 'C:\Program Files\n\norestart.exe'; Restart = $false; PolicyName = '' }
+    )
+    $lines26 = @(New-GameModeRevertLines -Applied $applied26 -Captured 'test')
+    $text26 = $lines26 -join "`n"
+    $errors = $null; $tokens26 = $null
+    $rAst26 = [System.Management.Automation.Language.Parser]::ParseInput($text26, [ref]$tokens26, [ref]$errors)
+    $cmds26 = @($rAst26.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] }, $true) | ForEach-Object { $_.GetCommandName() })
+    # positions of the COMMANDS in the parsed file, not of the text: a commented-out step must count as missing
+    $cmdAsts26 = @($rAst26.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] }, $true))
+    function Get-CmdOffset26([string]$Name) { $c = @($cmdAsts26 | Where-Object { $_.GetCommandName() -eq $Name } | Select-Object -First 1); if ($c.Count) { $c[0].Extent.StartOffset } else { -1 } }
+    $iSvc26 = Get-CmdOffset26 'Start-Service'; $iCap26 = Get-CmdOffset26 'Remove-NetQosPolicy'; $iProc26 = Get-CmdOffset26 'Start-Process'
+    $pathLit26 = @($rAst26.FindAll({ param($n) $n -is [System.Management.Automation.Language.StringConstantExpressionAst] -and $n.Value -like '*fakeapp.exe*' }, $true) | ForEach-Object { $_.Value })
+    if ($errors.Count) { Fail "the game mode revert file does not parse: $($errors[0].Message)" }
+    elseif (@($cmds26 | Where-Object { $_ -match '^(Stop-|Invoke-Expression$|iex$)' }).Count) { Fail "the game mode revert file runs $($cmds26 -join ', ')" }
+    elseif ($iCap26 -lt 0 -or $iSvc26 -lt 0 -or $iProc26 -lt 0) { Fail "the game mode revert file is missing a step (cap=$iCap26 service=$iSvc26 restart=$iProc26)" }
+    elseif (-not ($iProc26 -lt $iSvc26 -and $iSvc26 -lt $iCap26)) { Fail 'the game mode revert file does not undo newest-first' }
+    elseif ($pathLit26 -notcontains """C:\Program Files\it's fake\fakeapp.exe""") { Fail "a program path with a quote did not survive the revert file intact: $($pathLit26 -join ' | ')" }
+    elseif ($text26 -match "Get-Process -Name 'norestart'") { Fail 'the revert file restarts a program whose entry says restart: false' }
+    else { Pass 'the revert file parses, undoes the restart, service and cap newest-first, keeps a quoted path intact, and stops nothing' }
+
+    # 26g. enter and restore, CALLED, against stand-ins. A protected row smuggled past the plan must still not be touched.
+    $calls26 = New-Object System.Collections.Generic.List[string]
+    $fake26 = @{ running = @{ fakeapp = $true; vgc = $true }; svc = @{ fakesvc = 'Running' }; qos = New-Object System.Collections.Generic.List[string] }
+    # The stand-ins keep their record in GLOBAL variables: the generated revert file is run as its own script,
+    # where $script: would point at the revert file, not at this gate.
+    $global:calls26 = $calls26; $global:fake26 = $fake26
+    function global:New-NetQosPolicy { [CmdletBinding()] param($Name, $AppPathNameMatchCondition, $ThrottleRateActionBitsPerSecond, $PolicyStore) $global:calls26.Add("cap $AppPathNameMatchCondition $ThrottleRateActionBitsPerSecond"); $global:fake26.qos.Add($Name) }
+    function global:Get-NetQosPolicy { [CmdletBinding()] param($Name, $PolicyStore) if ($global:fake26.qos -contains $Name) { [pscustomobject]@{ Name = $Name } } }
+    function global:Remove-NetQosPolicy { [CmdletBinding()] param($Name, $PolicyStore, [switch]$Confirm) $global:calls26.Add("uncap $Name"); [void]$global:fake26.qos.Remove($Name) }
+    function global:Stop-Service { [CmdletBinding()] param($Name) $global:calls26.Add("stop-service $Name"); $global:fake26.svc[$Name] = 'Stopped' }
+    function global:Start-Service { [CmdletBinding()] param($Name) $global:calls26.Add("start-service $Name"); $global:fake26.svc[$Name] = 'Running' }
+    function global:Get-Service { [CmdletBinding()] param($Name) if ($global:fake26.svc.ContainsKey($Name)) { [pscustomobject]@{ Name = $Name; Status = $global:fake26.svc[$Name] } } }
+    function global:Get-Process { [CmdletBinding()] param($Name)
+        if (-not $global:fake26.running[$Name]) { return }
+        $o = [pscustomobject]@{ Id = 1; ProcessName = $Name; Path = "C:\Program Files\Fake\$Name.exe" }
+        $o | Add-Member -MemberType ScriptMethod -Name CloseMainWindow -Value { $global:calls26.Add("close $($this.ProcessName)"); $global:fake26.running[$this.ProcessName] = $false; $true }
+        $o }
+    function global:Stop-Process { [CmdletBinding()] param([Parameter(ValueFromPipeline = $true)]$InputObject, [switch]$Force) process { $global:calls26.Add("kill $($InputObject.ProcessName)") } }
+    function global:Start-Process { [CmdletBinding()] param($FilePath, $ArgumentList) $global:calls26.Add("start $(Split-Path -Leaf $FilePath) $ArgumentList") }
+    $gmTmp26 = Join-Path $env:TEMP ('wt-gm-' + [Guid]::NewGuid())
+    New-Item -ItemType Directory -Path $gmTmp26 | Out-Null
+    $script:RevertPath = Join-Path $gmTmp26 '09-game-mode-revert.ps1'
+    $script:StatePath  = Join-Path $gmTmp26 '09-game-mode-state.json'
+    $script:LogPath    = $null
+    try {
+        $planIn26 = @(
+            [pscustomobject]@{ Kind = 'Process'; Name = 'fakeapp'; Action = 'Stop'; Why = ''; Restart = $true; Force = $false; BitsPerSecond = 0; PolicyName = '' }
+            [pscustomobject]@{ Kind = 'Process'; Name = 'vgc';     Action = 'Stop'; Why = ''; Restart = $true; Force = $true;  BitsPerSecond = 0; PolicyName = '' }
+            [pscustomobject]@{ Kind = 'Service'; Name = 'fakesvc'; Action = 'Stop'; Why = ''; Restart = $false; Force = $false; BitsPerSecond = 0; PolicyName = '' }
+            [pscustomobject]@{ Kind = 'Cap';     Name = 'fakesync.exe'; Action = 'Cap'; Why = ''; Restart = $false; Force = $false; BitsPerSecond = 1000000; PolicyName = 'windows-tune game mode fakesync.exe' }
+            [pscustomobject]@{ Kind = 'Process'; Name = 'notrunning'; Action = 'Skip'; Why = 'not running'; Restart = $true; Force = $false; BitsPerSecond = 0; PolicyName = '' }
+        )
+        $got26 = @(Invoke-GameModeEnter $planIn26 6> $null)
+        $did26 = ($calls26 -join ', ')
+        if ($did26 -match 'vgc') { Fail "Invoke-GameModeEnter touched vgc when handed it directly: $did26" }
+        else { Pass 'Invoke-GameModeEnter refuses a protected row even when the plan hands it one (vgc not closed, not killed)' }
+        if ($did26 -eq 'close fakeapp, stop-service fakesvc, cap fakesync.exe 1000000' -and $got26.Count -eq 3) { Pass "enter applied exactly the 3 ordinary changes: $did26" }
+        else { Fail "enter did [$did26] and returned $($got26.Count) applied" }
+        $state26 = if (Test-Path -LiteralPath $script:StatePath) { @(Read-GameModeState (Get-Content -LiteralPath $script:StatePath -Raw)) } else { @() }
+        if ((Test-Path -LiteralPath $script:RevertPath) -and $state26.Count -eq 3 -and (($state26 | ForEach-Object { $_.Name }) -join ',') -eq 'fakeapp,fakesvc,fakesync.exe') { Pass 'enter wrote the revert and state files, naming only the 3 changes that took' }
+        else { Fail "after enter: revert exists=$(Test-Path -LiteralPath $script:RevertPath), state rows=$($state26.Count)" }
+        $calls26.Clear()
+        $failed26 = Invoke-GameModeRestore $state26 6> $null
+        $undo26 = ($calls26 -join ', ')
+        if ($failed26 -eq 0 -and $undo26 -eq 'uncap windows-tune game mode fakesync.exe, start-service fakesvc, start explorer.exe "C:\Program Files\Fake\fakeapp.exe"') { Pass "restore from the state file undid all 3, newest first: $undo26" }
+        else { Fail "restore returned $failed26 and did [$undo26]" }
+        if ($fake26.svc['fakesvc'] -eq 'Running' -and $fake26.qos.Count -eq 0) { Pass 'after restore the service is running again and no cap is left' } else { Fail 'restore left the fake machine changed' }
+        Clear-GameModeRecord
+        if (-not (Test-Path -LiteralPath $script:RevertPath) -and -not (Test-Path -LiteralPath $script:StatePath)) { Pass 'once restored, the revert and state files are gone (both exist only while game mode is on)' }
+        else { Fail 'the revert or state file is still there after a full restore' }
+        # the GENERATED revert file, RUN as a file from the temp folder, against the same stand-ins
+        $fake26.running['fakeapp'] = $true; $fake26.svc['fakesvc'] = 'Running'
+        [void](Invoke-GameModeEnter $planIn26 6> $null)
+        $calls26.Clear()
+        # never run it unless every command it calls is a stand-in: a real Start-Process here would open a window
+        $real26 = @('Start-Process', 'Start-Service', 'Remove-NetQosPolicy', 'Get-NetQosPolicy', 'Get-Process' | Where-Object { (Get-Command $_).CommandType -ne 'Function' })
+        if ($real26.Count) { throw "stand-ins are not in place for $($real26 -join ', ') - the revert file was not run" }
+        & $script:RevertPath 6> $null
+        $rev26 = ($calls26 -join ', ')
+        if ($rev26 -eq 'uncap windows-tune game mode fakesync.exe, start-service fakesvc, start explorer.exe "C:\Program Files\Fake\fakeapp.exe"' -and $fake26.qos.Count -eq 0) { Pass "the generated revert file, run, undid all 3: $rev26" }
+        else { Fail "the generated revert file did [$rev26]" }
+        if (-not (Test-Path -LiteralPath $script:RevertPath) -and -not (Test-Path -LiteralPath $script:StatePath)) { Pass 'the revert file removed itself and the state file once every step worked' }
+        else { Fail "after running the revert file: revert exists=$(Test-Path -LiteralPath $script:RevertPath) state exists=$(Test-Path -LiteralPath $script:StatePath)" }
+        # nothing to do -> no files, says so
+        $calls26.Clear()
+        $none26 = @(Invoke-GameModeEnter @($planIn26[4]) 6> $null)
+        if ($none26.Count -eq 0 -and $calls26.Count -eq 0 -and -not (Test-Path -LiteralPath $script:RevertPath)) { Pass 'enter with nothing to change changes nothing and writes no revert file' }
+        else { Fail 'enter with nothing to change still acted or wrote a file' }
+        # a tampered state file naming anti-cheat is refused, not restored from
+        try { [void](Read-GameModeState '[{"Kind":"Service","Name":"vgk","Path":"","Restart":false,"PolicyName":""}]'); Fail 'a state file naming vgk was accepted' }
+        catch { Pass 'a state file naming a protected entry is refused' }
+    } finally {
+        foreach ($s26 in 'New-NetQosPolicy', 'Get-NetQosPolicy', 'Remove-NetQosPolicy', 'Stop-Service', 'Start-Service', 'Get-Service', 'Get-Process', 'Stop-Process', 'Start-Process') { Remove-Item "function:global:$s26" -ErrorAction SilentlyContinue }
+        Remove-Variable -Name calls26, fake26 -Scope Global -ErrorAction SilentlyContinue
+        Remove-Item -Recurse -Force $gmTmp26 -ErrorAction SilentlyContinue
+    }
+}
+
+# 26h. the real script, RUN with -DryRun from a scratch copy: it refuses the hostile entries, changes nothing,
+#      and -InstallWatcher refuses from a folder a normal program can write (no scheduled task appears).
+$gmRun26 = Join-Path $env:TEMP ('wt-gmrun-' + [Guid]::NewGuid())
+New-Item -ItemType Directory -Path (Join-Path $gmRun26 'scripts') | Out-Null
+try {
+    Copy-Item (Join-Path $repo 'windows-tune.ps1') $gmRun26
+    Copy-Item (Join-Path $repo 'scripts\09-game-mode.ps1'), (Join-Path $repo 'scripts\09-game-mode.defaults.json') (Join-Path $gmRun26 'scripts')
+    $hostilePath26 = Join-Path $gmRun26 'hostile.json'
+    Set-Content -LiteralPath $hostilePath26 -Encoding ascii -Value '{ "games": ["cs2.exe"], "stopProcesses": [ {"name":"vgc"}, {"name":"lsass"}, {"name":"explorer.exe"} ], "stopServices": [ {"name":"vgk"}, {"name":"WinDefend"} ] }'
+    $gmScript26 = Join-Path $gmRun26 'scripts\09-game-mode.ps1'
+    $out26 = (& $ps -NoProfile -ExecutionPolicy Bypass -File $gmScript26 -DryRun -ConfigPath $hostilePath26) -join "`n"
+    $exit26 = $LASTEXITCODE
+    $refusedRun26 = ([regex]::Matches($out26, 'REFUSED ')).Count
+    $written26 = @(Get-ChildItem (Join-Path $gmRun26 'scripts') -File | Where-Object { $_.Name -notin '09-game-mode.ps1', '09-game-mode.defaults.json' })
+    if ($exit26 -eq 0 -and $out26 -match 'DRY RUN' -and $refusedRun26 -eq 5 -and $written26.Count -eq 0) { Pass '09 -DryRun with a hostile config: exit 0, 5 REFUSED lines, no file written' }
+    else { Fail "09 -DryRun: exit $exit26, $refusedRun26 REFUSED, wrote [$($written26.Name -join ', ')]`n$out26" }
+    $taskBefore26 = @(Get-ScheduledTask -TaskName 'windows-tune game mode' -ErrorAction SilentlyContinue).Count
+    $out26 = (& $ps -NoProfile -ExecutionPolicy Bypass -File $gmScript26 -InstallWatcher -DryRun) -join "`n"
+    $exit26 = $LASTEXITCODE
+    $taskAfter26 = @(Get-ScheduledTask -TaskName 'windows-tune game mode' -ErrorAction SilentlyContinue).Count
+    if ($exit26 -eq 4 -and $out26 -match 'REFUSED to install the watcher' -and $taskAfter26 -eq $taskBefore26) { Pass "09 -InstallWatcher from a user-writable folder: exit 4, refused, scheduled tasks unchanged ($taskAfter26)" }
+    else { Fail "09 -InstallWatcher from a user-writable folder: exit $exit26, tasks $taskBefore26 -> $taskAfter26`n$out26" }
+    if (-not $elevated) {
+        # 2>&1 on a native command throws under ErrorActionPreference Stop in PowerShell 5.1, so relax it for this call only
+        $out26 = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File $gmScript26 -Watch 2>&1 }) -join "`n"
+        if ($LASTEXITCODE -ne 0 -and $out26 -match 'elevated PowerShell') { Pass '09 -Watch without admin refuses before it watches anything' }
+        else { Fail "09 -Watch without admin: exit $LASTEXITCODE`n$out26" }
+    } else { Pass 'stage 26 -Watch refusal skipped: this gate is ELEVATED, and -Watch would really watch' }
+} finally { Remove-Item -Recurse -Force $gmRun26 -ErrorAction SilentlyContinue }
 
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green

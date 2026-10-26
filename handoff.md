@@ -5,6 +5,15 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-10-26 - game mode, v1.1.0 (decision 70e0459f). Built for Sam.
+
+- New `scripts/09-game-mode.ps1` + `09-game-mode.defaults.json`. Menu 8 (preview, read-only), 9 (`-Watch`), G (`-InstallWatcher`, opt-in scheduled task). Same three rows in the click-install window (now 10 rows). VERSION v1.1.0.
+- Defaults only cap cloud-sync UPLOAD by QoS (ActiveStore, a reboot clears it). Stop entries (Docker, Ollama, a service, WSL) ship switched OFF.
+- Hard denylist in `Test-GameModeProtected` (anti-cheat, Windows system, Defender, your own games). Not configurable.
+- Preflight stage 26 (and 20/21 updated): 170 ok, exit 0. Proven red twice: `vgc` removed from the denylist (9 FAIL), revert's Start-Service step commented out (2 FAIL). Restored byte-exactly.
+- Exercised on this PC in -DryRun only. Never run live here: no -Watch, no task. Not covered: a real elevated -Watch, a real QoS cap read-back, CloseMainWindow on real tray apps.
+- Release NOT cut: install.ps1 still pins v1.0.0. Sam cuts v1.1.0.
+
 ## 2026-10-20 - taskbar restyle APPLIED after Tre's typed yes (ask 568c4847). Plan A only.
 
 - Done: registry backups saved to `Documents/Desktop-Stash/taskbar-backup-2026-10-20/` (advanced.reg, search.reg). Installed TranslucentTB 2026.2.0.0 via winget msstore and launched it (pid seen, 0 TCP connections at check). Desktop screenshot shows a clear taskbar over the wallpaper.

@@ -17,7 +17,7 @@
     read-only options only, and an elevated run refuses with exit 4.
 
 .PARAMETER Choice
-    Run one menu option without showing the menu, then exit: 1-7, R or Q.
+    Run one menu option without showing the menu, then exit: 1-9, G, R or Q.
 
 .PARAMETER AcceptRisk
     Skip the I ACCEPT prompt. The elevated relaunch passes this so you are not
@@ -26,8 +26,8 @@
 
 .PARAMETER NoElevate
     Do not relaunch elevated. Only the storage report (1), the antivirus status
-    check (2) and the revert-file listing (R) work without administrator
-    rights; the rest will refuse.
+    check (2), the game mode preview (8) and the revert-file listing (R) work
+    without administrator rights; the rest will refuse.
 
 .PARAMETER Yes
     Answer y to the "Run it?" confirmation. Never answers the I ACCEPT prompt.
@@ -41,7 +41,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('1', '2', '3', '4', '5', '6', '7', 'R', 'Q')][string]$Choice,
+    [ValidateSet('1', '2', '3', '4', '5', '6', '7', '8', '9', 'G', 'R', 'Q')][string]$Choice,
     [switch]$AcceptRisk,
     [switch]$NoElevate,
     [switch]$Yes
@@ -134,10 +134,10 @@ if ($isAdmin -and $selfRisk) {
 }
 if (-not $isAdmin) {
     if ($NoElevate) {
-        Write-Host 'Not elevated: only the storage report (1), the antivirus status check (2) and the revert list (R) will work.' -ForegroundColor Yellow
+        Write-Host 'Not elevated: only the storage report (1), the antivirus status check (2), the game mode preview (8) and the revert list (R) will work.' -ForegroundColor Yellow
     } elseif ($selfRisk) {
         Write-Host "Not elevating: $selfRisk, so a program running as you could change what runs as administrator." -ForegroundColor Yellow
-        Write-Host 'Only the storage report (1), the antivirus status check (2) and the revert list (R) will work from here.' -ForegroundColor Yellow
+        Write-Host 'Only the storage report (1), the antivirus status check (2), the game mode preview (8) and the revert list (R) will work from here.' -ForegroundColor Yellow
         Write-Host "  $installHint" -ForegroundColor Yellow
     } else {
         $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-AcceptRisk')
@@ -163,6 +163,11 @@ $menu = [ordered]@{
              changes = 'UNINSTALLS a product you name - NOT reversible; the script asks for the product name itself' }
     '7' = @{ name = '08-core-unpark.ps1';          args = @{};                        label = 'Keep every CPU core unparked';
              changes = 'Minimum unparked cores = 100% on the active plan, AC and battery; costs idle power; writes 08-core-unpark-revert.ps1' }
+    '8' = @{ name = '09-game-mode.ps1';            args = @{ DryRun = $true };        label = 'Game mode preview (read-only)';         changes = '' }
+    '9' = @{ name = '09-game-mode.ps1';            args = @{ Watch = $true };         label = 'Game mode: watch for games now';
+             changes = 'While a listed game runs: what scripts\09-game-mode.json lists (by default only an upload cap on cloud-sync apps); undone when the game exits or on Ctrl+C; writes 09-game-mode-revert.ps1 while on; runs until you close it' }
+    'G' = @{ name = '09-game-mode.ps1';            args = @{ InstallWatcher = $true }; label = 'Game mode: start at every sign-in';
+             changes = 'Registers a scheduled task that runs game mode hidden, as admin, at every sign-in; refused outside Program Files; writes 09-game-mode-watcher-revert.ps1' }
     'R' = @{ name = '';                            args = @{};                        label = 'List revert files';                    changes = '' }
     'Q' = @{ name = '';                            args = @{};                        label = 'Quit';                                 changes = '' }
 }

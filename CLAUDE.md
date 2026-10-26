@@ -17,6 +17,7 @@ checked against a real listing while writing, then re-checked by script.
 | The component store, DISM, cleanup | `scripts/04-component-cleanup.ps1` |
 | Defender handover, antivirus status | `scripts/05-defender-handover.ps1` |
 | Removing a third-party antivirus | `scripts/06-remove-third-party-av.ps1` |
+| Game mode (pause background work while a game runs), its config and denylist | `scripts/09-game-mode.ps1`, `scripts/09-game-mode.defaults.json` |
 | Installing, or the double-click entry point | `install.ps1`, `Run-WindowsTune.cmd` |
 | **Whether a revert actually reverts** | `tests/revert-credibility.ps1` and `tests/revert-drift.ps1`, with shared helpers in `tests/revert-lib.ps1` |
 | Running a change without touching this machine | `tests/sandbox-run.ps1` |

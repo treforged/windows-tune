@@ -1,5 +1,5 @@
 # windows-tune-gui.ps1
-# Assumption: Get-OptionPlan receives an array of 6 booleans indicating the checked state of options 1‑6.
+# Get-OptionPlan receives one boolean per option row (10 rows) and a list of read-only rows.
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
@@ -18,13 +18,14 @@ function Set-Status {
 
 function Get-OptionPlan {
     param(
-        [bool[]]$Checked   # array length 6
+        [bool[]]$Checked,                 # one per row of $optionDefs, in order
+        [int[]]$ReadOnly = @(1, 2, 8)     # rows (1-based) that change nothing: storage report, antivirus status, game mode preview
     )
     $plan = @()
     for ($i = 0; $i -lt $Checked.Length; $i++) {
         if ($Checked[$i]) {
             $choice = $i + 1
-            $changes = $choice -ge 3   # options 3‑6 change the machine
+            $changes = $ReadOnly -notcontains $choice
             $plan += [PSCustomObject]@{
                 Choice  = $choice
                 Changes = $changes
@@ -66,7 +67,7 @@ $scriptDir = $PSScriptRoot.TrimEnd('\')
 # -------------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "Windows Tune"
-$form.Size = New-Object System.Drawing.Size(460, 340)
+$form.Size = New-Object System.Drawing.Size(460, 430)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
@@ -81,7 +82,10 @@ $optionDefs = @(
     @{ Label = 'Power tune';                            Args = '-Choice 4' },
     @{ Label = 'Component store cleanup';               Args = '-Choice 5' },
     @{ Label = 'Remove a third-party antivirus';        Args = '-Choice 6' },
-    @{ Label = 'Keep every CPU core unparked';          Args = '-Choice 7' }
+    @{ Label = 'Keep every CPU core unparked';          Args = '-Choice 7' },
+    @{ Label = 'Game mode preview (read-only)';         Args = '-Choice 8 -AcceptRisk -NoElevate' },
+    @{ Label = 'Game mode: watch for games now';        Args = '-Choice 9' },
+    @{ Label = 'Game mode: start at every sign-in';     Args = '-Choice G' }
 )
 
 $checkboxes = @()
