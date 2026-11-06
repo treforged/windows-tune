@@ -126,7 +126,7 @@ should not teach the habit.
 
 ## Scripts
 
-Run elevated, in order, or individually. None support `-WhatIf` (09 has `-DryRun`). Only 01, 02, 08 and 09
+Run elevated, in order, or individually. None support `-WhatIf` (09 has `-DryRun`). Only 01, 02, 08, 09 and 10
 write a `*-revert.ps1` beside themselves first. 03 changes nothing. 04, 05 and 06
 write no revert file: 04's cleanup cannot be undone, and 06 removes a product.
 
@@ -141,6 +141,8 @@ write no revert file: 04's cleanup cannot be undone, and 06 removes a product.
 | `05-defender-handover.ps1` | Diagnoses the "no AV at all" state; repairs what a script safely can; adds developer exclusions once protection is genuinely on, and **verifies they were actually stored**. |
 | `06-remove-third-party-av.ps1` | Fully uninstalls an MSI-based third-party AV and waits for Windows to hand protection back to Defender. Usually needs no reboot and no Tamper Protection toggle. |
 | `08-core-unpark.ps1` | Keeps every CPU core unparked (minimum cores 100%) on the active plan, AC and battery. |
+| `10-auto-update.ps1` | Opt-in update choice: Off (default), Check and tell me, or Install automatically. See Updates below. |
+| `11-recommended.ps1` | Read-only. Lists the privacy changes worth making on this PC, with risk, undo and source. |
 | `09-game-mode.ps1` | Game mode. While a game you list runs, pauses the background work you list, and puts it back when the game exits. See below. |
 
 ### Game mode (`09-game-mode.ps1`, menu 8, 9 and G)
@@ -181,16 +183,40 @@ examples, switched off.
   runs as admin. Remove it with `09-game-mode-watcher-revert.ps1` (menu R) or
   `-RemoveWatcher`.
 
-### Privacy scripts (`privacy\`, standalone, not in the menu yet)
+### Recommended changes (menu S, and the Recommended button in the click-install window)
 
-Merged in from the former net-tune repo. Run each as a file, from the repo folder.
+`scripts\11-recommended.ps1` reads this PC (it runs `privacy\privacy-audit.ps1`, which is read-only) and lists
+only the changes the audit found worth making. For each one it says what it does, the risk, the undo and where
+the claim is documented. **Nothing is applied by looking.** In the click-install window the safe changes are
+pre-ticked, the others are listed unticked, and a tick only selects rows: you still press Install selected and
+answer the confirmation box. A change whose source says NOT FOUND is a judgement call and is never pre-ticked.
 
-| Script | Does |
-| --- | --- |
-| `privacy\privacy-audit.ps1` | Read-only. Checks 12 telemetry, ad-ID, location, browser-cookie and DoH settings. Exit 0 all as expected, 1 drift, 2 nothing readable. |
-| `privacy\privacy-tune.ps1` | Hides your language list from websites (per user, no admin). Writes `privacy-tune-revert.ps1` first. |
-| `privacy\browser-privacy.ps1` | Chrome and Edge policy: block third-party cookies and Chrome ad-topic APIs. Run elevated. Undo: `-Undo`. Refuses to overwrite a policy it did not write. |
-| `privacy\dns-encrypt.ps1` | Turns on DNS over HTTPS for 1.1.1.1 and 1.0.0.1. Run elevated. Rolls back by itself if a test lookup fails. Writes `dns-encrypt-revert.ps1` first. |
+### Privacy scripts (`privacy\`, menu P, T, Y, L, B and D)
+
+Merged in from the former net-tune repo, plus `telemetry-tune.ps1`. Each is a menu row and a click-install row.
+
+| Menu | Script | Does |
+| --- | --- | --- |
+| P | `privacy\privacy-audit.ps1` | Read-only. Checks 12 telemetry, ad-ID, location, browser-cookie and DoH settings. Exit 0 all as expected, 1 drift, 2 nothing readable. |
+| T | `privacy\telemetry-tune.ps1` | Diagnostic data policy (lowest level your edition allows: 0 on Enterprise, Education and Server, 1 Required on Home and Pro, as Microsoft documents), advertising ID, tailored experiences, activity-feed publishing. Records the old values and writes `telemetry-tune-revert.ps1` first; refuses a policy it did not set. `-DryRun` shows the plan. |
+| Y | `privacy\telemetry-tune.ps1 -ServicesOnly` | Disables the DiagTrack and dmwappushservice services. Separate and never pre-ticked: Microsoft's pages do not recommend it. |
+| L | `privacy\privacy-tune.ps1` | Hides your language list from websites (per user, no admin). Writes `privacy-tune-revert.ps1` first. |
+| B | `privacyrowser-privacy.ps1` | Chrome and Edge policy: block third-party cookies and Chrome ad-topic APIs. Run elevated. Undo: `-Undo`. Refuses to overwrite a policy it did not write. |
+| D | `privacy\dns-encrypt.ps1` | Turns on DNS over HTTPS for 1.1.1.1 and 1.0.0.1. Run elevated. Rolls back by itself if a test lookup fails. Writes `dns-encrypt-revert.ps1` first. |
+
+Revert files from `privacy\` are listed by menu R together with the ones in `scripts\`.
+
+### Updates (`10-auto-update.ps1`, menu U and V)
+
+Off by default. A fresh install checks nothing and registers no task. Menu V asks for one of three modes:
+
+- **Off** - nothing is checked.
+- **Check** - a scheduled task asks GitHub for the latest release at sign-in and daily and leaves a notice (menu U shows it). It installs nothing.
+- **Install** - the same task also downloads the new release zip, checks its SHA256 against the digest GitHub publishes for that asset, checks the zip holds only the file types this tool ships and no path that leaves the folder, keeps your current copy in `<install folder>.previous`, and installs through `install.ps1 -FromZip -Sha256`. A mismatch installs nothing. It never runs while a game from the game mode list is running (checked again after the download). Menu R lists `10-update-revert.ps1`, which puts the previous copy back.
+
+Both on-modes register one scheduled task, `windows-tune update`, only from a Program Files install (the same rule as menu G). Choosing Off removes it.
+
+**Trust limit, plainly:** the SHA256 comes from the same GitHub release as the zip. It catches a damaged or swapped download. It does not prove who published it, because whoever controls the release controls the hash. Install mode therefore trusts the publisher's GitHub account. Check mode does not. A signature checked against a public key shipped with the installed copy would close that gap; it does not exist yet.
 
 ```powershell
 # see what is wrong, change nothing

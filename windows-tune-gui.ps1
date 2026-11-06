@@ -1,5 +1,5 @@
 # windows-tune-gui.ps1
-# Get-OptionPlan receives one boolean per option row (10 rows) and a list of read-only rows.
+# Get-OptionPlan receives one boolean per option row (19 rows) and a list of read-only rows.
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
@@ -19,7 +19,7 @@ function Set-Status {
 function Get-OptionPlan {
     param(
         [bool[]]$Checked,                 # one per row of $optionDefs, in order
-        [int[]]$ReadOnly = @(1, 2, 8)     # rows (1-based) that change nothing: storage report, antivirus status, game mode preview
+        [int[]]$ReadOnly = @(1, 2, 8, 11, 13, 14)     # rows (1-based) that change nothing: storage report, antivirus status, game mode preview, update settings, privacy audit, recommended
     )
     $plan = @()
     for ($i = 0; $i -lt $Checked.Length; $i++) {
@@ -33,6 +33,21 @@ function Get-OptionPlan {
         }
     }
     return $plan
+}
+
+function Get-RecommendedRows {
+    # Pure. Which option rows (0-based) the Recommended view should tick: every recommendation the
+    # catalogue marks PreTicked (safe), found by its menu key in the rows' -Choice. Nothing is run here.
+    param($Recommendations, [object[]]$Defs, [switch]$All)
+    $rows = @()
+    foreach ($r in @($Recommendations)) {
+        if (-not $r) { continue }
+        if (-not $All -and -not $r.PreTicked) { continue }
+        for ($i = 0; $i -lt $Defs.Count; $i++) {
+            if ($Defs[$i].Args -match "-Choice $([regex]::Escape([string]$r.Key))(\s|$)") { $rows += $i; break }
+        }
+    }
+    return $rows
 }
 
 function Show-ChangeConfirmation {
@@ -67,7 +82,7 @@ $scriptDir = $PSScriptRoot.TrimEnd('\')
 # -------------------------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "Windows Tune"
-$form.Size = New-Object System.Drawing.Size(460, 430)
+$form.Size = New-Object System.Drawing.Size(660, 430)   # height is set below, once the rows are counted
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
 $form.MaximizeBox = $false
@@ -85,7 +100,16 @@ $optionDefs = @(
     @{ Label = 'Keep every CPU core unparked';          Args = '-Choice 7' },
     @{ Label = 'Game mode preview (read-only)';         Args = '-Choice 8 -AcceptRisk -NoElevate' },
     @{ Label = 'Game mode: watch for games now';        Args = '-Choice 9' },
-    @{ Label = 'Game mode: start at every sign-in';     Args = '-Choice G' }
+    @{ Label = 'Game mode: start at every sign-in';     Args = '-Choice G' },
+    @{ Label = 'Update settings (read-only)';           Args = '-Choice U -AcceptRisk -NoElevate' },
+    @{ Label = 'Updates: choose Off, Check or Install'; Args = '-Choice V' },
+    @{ Label = 'Privacy audit (read-only)';             Args = '-Choice P -AcceptRisk -NoElevate' },
+    @{ Label = 'Recommended changes for this PC (read-only)'; Args = '-Choice S -AcceptRisk -NoElevate' },
+    @{ Label = 'Turn off Windows ad and diagnostic settings'; Args = '-Choice T' },
+    @{ Label = 'Disable the DiagTrack and dmwappush services'; Args = '-Choice Y' },
+    @{ Label = 'Hide your language list from websites'; Args = '-Choice L' },
+    @{ Label = 'Block third-party cookies in Chrome and Edge'; Args = '-Choice B' },
+    @{ Label = 'Encrypt DNS lookups (DNS over HTTPS)';  Args = '-Choice D' }
 )
 
 $checkboxes = @()
@@ -101,7 +125,7 @@ for ($i = 0; $i -lt $optionDefs.Count; $i++) {
 
     $status = New-Object System.Windows.Forms.Label
     $status.Text = ''
-    $status.Location = New-Object System.Drawing.Point(250, ($y + 3))
+    $status.Location = New-Object System.Drawing.Point(360, ($y + 3))
     $status.AutoSize = $true
     $form.Controls.Add($status)
     $global:StatusLabels += $status
@@ -110,16 +134,23 @@ for ($i = 0; $i -lt $optionDefs.Count; $i++) {
 }
 
 # Buttons
+$form.ClientSize = New-Object System.Drawing.Size(640, ($y + 70))
+$btnRecommended = New-Object System.Windows.Forms.Button
+$btnRecommended.Text = 'Recommended...'
+$btnRecommended.Size = New-Object System.Drawing.Size(140, 30)
+$btnRecommended.Location = New-Object System.Drawing.Point(20, ($y + 10))
+$form.Controls.Add($btnRecommended)
+
 $btnInstallSelected = New-Object System.Windows.Forms.Button
 $btnInstallSelected.Text = 'Install selected'
 $btnInstallSelected.Size = New-Object System.Drawing.Size(120, 30)
-$btnInstallSelected.Location = New-Object System.Drawing.Point(60, ($y + 10))
+$btnInstallSelected.Location = New-Object System.Drawing.Point(300, ($y + 10))
 $form.Controls.Add($btnInstallSelected)
 
 $btnInstallAll = New-Object System.Windows.Forms.Button
 $btnInstallAll.Text = 'Install all'
-$btnInstallAll.Size = New-Object System.Drawing.Size(120, 30)
-$btnInstallAll.Location = New-Object System.Drawing.Point(250, ($y + 10))
+$btnInstallAll.Size = New-Object System.Drawing.Size(130, 30)
+$btnInstallAll.Location = New-Object System.Drawing.Point(480, ($y + 10))
 $form.Controls.Add($btnInstallAll)
 
 # -------------------------------------------------------------------
@@ -168,6 +199,65 @@ $runSelected = {
         else { Set-Status -Index $idx -Text "Exit code: $exitCode" }
     }
 }
+
+# Recommended view: reads this PC (read-only), lists each suggested change with what it does, the risk,
+# the undo and the source, pre-ticks only the SAFE ones, and applies NOTHING. "Tick in main window" ticks
+# the matching rows; the person still presses Install selected and answers the confirmation box.
+$showRecommended = {
+    $script11 = Join-Path (Join-Path $scriptDir 'scripts') '11-recommended.ps1'
+    $out = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $script11 -Json 2>&1 | Out-String
+    $recs = $null
+    try { $recs = @($out | ConvertFrom-Json) } catch { }
+    if ($null -eq $recs) {
+        [void][System.Windows.Forms.MessageBox]::Show("The privacy audit could not be read, so nothing can be recommended. This is not a claim your PC is fine.`n`n$out", 'Recommended', 'OK', 'Warning')
+        return
+    }
+    if ($recs.Count -eq 0) {
+        [void][System.Windows.Forms.MessageBox]::Show('Nothing to recommend: every setting the audit checks is already where it should be.', 'Recommended', 'OK', 'Information')
+        return
+    }
+    $dlg = New-Object System.Windows.Forms.Form
+    $dlg.Text = 'Recommended for this PC (nothing is applied from here)'
+    $dlg.StartPosition = 'CenterParent'
+    $dlg.ClientSize = New-Object System.Drawing.Size(720, (60 + 120 * $recs.Count + 50))
+    $recBoxes = @()
+    $ry = 15
+    foreach ($r in $recs) {
+        $cb = New-Object System.Windows.Forms.CheckBox
+        $cb.Text = "$($r.Title)   [menu $($r.Key)]"
+        $cb.Checked = [bool]$r.PreTicked
+        $cb.AutoSize = $true
+        $cb.Location = New-Object System.Drawing.Point(15, $ry)
+        $dlg.Controls.Add($cb)
+        $recBoxes += $cb
+        $lbl = New-Object System.Windows.Forms.Label
+        $lbl.Text = "Does: $($r.What)`nRisk: $($r.Risk)`nUndo: $($r.Undo)`nSource: $($r.Source)"
+        $lbl.Location = New-Object System.Drawing.Point(35, ($ry + 22))
+        $lbl.Size = New-Object System.Drawing.Size(670, 92)
+        $dlg.Controls.Add($lbl)
+        $ry += 120
+    }
+    $note = New-Object System.Windows.Forms.Label
+    $note.Text = 'Ticked = safe, pre-ticked. Unticked = your call. Nothing runs until you press Install selected and confirm.'
+    $note.Location = New-Object System.Drawing.Point(15, $ry)
+    $note.AutoSize = $true
+    $dlg.Controls.Add($note)
+    $use = New-Object System.Windows.Forms.Button
+    $use.Text = 'Tick in main window'
+    $use.Size = New-Object System.Drawing.Size(160, 30)
+    $use.Location = New-Object System.Drawing.Point(545, ($ry + 20))
+    $use.Add_Click([System.EventHandler]{ param($sender, $e)
+        $chosen = @(); for ($i = 0; $i -lt $recs.Count; $i++) { if ($recBoxes[$i].Checked) { $chosen += $recs[$i] } }
+        foreach ($cb in $checkboxes) { $cb.Checked = $false }
+        foreach ($i in (Get-RecommendedRows -Recommendations $chosen -Defs $optionDefs -All)) { $checkboxes[$i].Checked = $true }
+        $dlg.Close()
+    })
+    $dlg.Controls.Add($use)
+    $dlg.ClientSize = New-Object System.Drawing.Size(720, ($ry + 65))
+    if ($env:WT_GUI_NO_SHOW -ne '1') { [void]$dlg.ShowDialog($form) }
+    return $dlg
+}
+$btnRecommended.Add_Click([System.EventHandler]{ param($sender, $e) [void](& $showRecommended) })
 
 # Button handlers
 $btnInstallSelected.Add_Click([System.EventHandler]{ param($sender, $e) & $runSelected })

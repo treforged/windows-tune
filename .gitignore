@@ -5,3 +5,7 @@ storage.txt
 evals/
 09-game-mode.json
 09-game-mode-state.json
+10-update-mode.json
+10-update-notice.txt
+10-update.log
+telemetry-tune-state.json

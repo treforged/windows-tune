@@ -10,8 +10,13 @@ $ErrorActionPreference = 'SilentlyContinue'
 
 function Read-Reg([string]$Path, [string]$Name) { (Get-ItemProperty -Path $Path -Name $Name -EA SilentlyContinue).$Name }
 
+# Microsoft: "Diagnostic data off" (0) is honoured only on Enterprise, Education and Server. Elsewhere 1
+# (Required) is the lowest level, so 0 or 1 both count as as low as this edition goes.
+$edition = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name EditionID -EA SilentlyContinue).EditionID
+$telemetryWant = if ("$edition" -match '^(Enterprise|Education|Server)') { '0' } else { '0|1' }
+
 $CHECKS = @(
-    @{ What = 'Telemetry policy';            Want = '0';        Get = { Read-Reg 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection' 'AllowTelemetry' } }
+    @{ What = 'Telemetry policy';            Want = $telemetryWant;        Get = { Read-Reg 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection' 'AllowTelemetry' } }
     @{ What = 'Advertising ID';              Want = '0';        Get = { Read-Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo' 'Enabled' } }
     @{ What = 'Tailored experiences';        Want = '0';        Get = { Read-Reg 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Privacy' 'TailoredExperiencesWithDiagnosticDataEnabled' } }
     @{ What = 'Activity feed publish';       Want = '0';        Get = { Read-Reg 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' 'PublishUserActivities' } }
@@ -30,7 +35,7 @@ foreach ($c in $CHECKS) {
     $now = "$(& $c.Get)"
     if ($now -eq '') { $drift++; Write-Host ("  UNREADABLE {0} - expected {1}, value absent" -f $c.What, $c.Want) -ForegroundColor Red; continue }
     $read++
-    if ($now -ieq $c.Want) { Write-Host ("  ok         {0} = {1}" -f $c.What, $now) }
+    if ($now -match "^($($c.Want))$") { Write-Host ("  ok         {0} = {1}" -f $c.What, $now) }
     else { $drift++; Write-Host ("  DRIFT      {0} = {1}, expected {2}" -f $c.What, $now, $c.Want) -ForegroundColor Yellow }
 }
 Write-Host "$($CHECKS.Count) checks, $read readable, $drift not as expected."
