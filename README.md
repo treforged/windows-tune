@@ -212,11 +212,16 @@ Off by default. A fresh install checks nothing and registers no task. Menu V ask
 
 - **Off** - nothing is checked.
 - **Check** - a scheduled task asks GitHub for the latest release at sign-in and daily and leaves a notice (menu U shows it). It installs nothing.
-- **Install** - the same task also downloads the new release zip, checks its SHA256 against the digest GitHub publishes for that asset, checks the zip holds only the file types this tool ships and no path that leaves the folder, keeps your current copy in `<install folder>.previous`, and installs through `install.ps1 -FromZip -Sha256`. A mismatch installs nothing. It never runs while a game from the game mode list is running (checked again after the download). Menu R lists `10-update-revert.ps1`, which puts the previous copy back.
+- **Install** - the same task also downloads the new release zip and refuses unless ALL of these hold: its SHA256 matches the digest GitHub publishes for that asset; a detached signature (`windows-tune-vX.Y.Z.zip.sig`) verifies against the release key in `scripts\update-pubkey.xml`, the key shipped with the copy you already have; and the zip holds only the file types this tool ships and no path that leaves the folder. It then keeps your current copy in `<install folder>.previous` and installs through `install.ps1 -FromZip -Sha256`. It never runs while a game from the game mode list is running (checked again after the download). Menu R lists `10-update-revert.ps1`, which puts the previous copy back. A copy that ships no key cannot turn Install on (exit 5); Check still works.
 
 Both on-modes register one scheduled task, `windows-tune update`, only from a Program Files install (the same rule as menu G). Choosing Off removes it.
 
-**Trust limit, plainly:** the SHA256 comes from the same GitHub release as the zip. It catches a damaged or swapped download. It does not prove who published it, because whoever controls the release controls the hash. Install mode therefore trusts the publisher's GitHub account. Check mode does not. A signature checked against a public key shipped with the installed copy would close that gap; it does not exist yet.
+**What the signature does and does not give you:**
+
+- The SHA256 alone comes from the same GitHub release as the zip, so alone it would not prove who published it. The signature is made with a private key that lives only on the maintainer's PC, outside every repo (`tools\new-signing-key.ps1` makes it, DPAPI-protected, and prints only the public key and its fingerprint; `tools\sign-release.ps1` signs a release zip). Menu U shows the fingerprint of the key your copy trusts, so you can compare it with the one the maintainer publishes.
+- **First install:** the public key reaches your PC inside the first install, and that install is trusted by the SHA256 pinned in `install.ps1` on the main branch. So for the first install the trust is that pin and the maintainer's GitHub account, not the signature.
+- **Key change:** an update is checked with the key you already have, never with a key inside the new zip. Rotating the key means a fresh manual install. If the maintainer loses the private key, copies carrying the old public key cannot take another automatic update.
+- A valid signature proves the maintainer signed those exact bytes. It does not prove they are free of bugs.
 
 ```powershell
 # see what is wrong, change nothing

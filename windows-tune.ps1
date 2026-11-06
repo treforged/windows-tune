@@ -170,7 +170,7 @@ $menu = [ordered]@{
              changes = 'Registers a scheduled task that runs game mode hidden, as admin, at every sign-in; refused outside Program Files; writes 09-game-mode-watcher-revert.ps1' }
     'U' = @{ name = '10-auto-update.ps1';          args = @{ Status = $true };         label = 'Update settings (read-only)';          changes = '' }
     'V' = @{ name = '10-auto-update.ps1';          args = @{ Configure = $true };      label = 'Updates: choose Off, Check or Install';
-             changes = 'Asks which mode you want. Off (default) checks nothing. Check registers a scheduled task that looks for a new release at sign-in and daily and leaves a notice. Install also downloads, SHA256-checks and installs it, never while a game runs, keeping the previous copy; refused outside Program Files; writes 10-update-task-revert.ps1' }
+             changes = 'Asks which mode you want. Off (default) checks nothing. Check registers a scheduled task that looks for a new release at sign-in and daily and leaves a notice. Install also downloads it and installs only if its SHA256 and a signature against the release key shipped with this copy both verify, never while a game runs, keeping the previous copy; refused outside Program Files or without a shipped key; writes 10-update-task-revert.ps1' }
     'P' = @{ name = '..\privacy\privacy-audit.ps1';  args = @{};                       label = 'Privacy audit (read-only)';            changes = '' }
     'S' = @{ name = '11-recommended.ps1';          args = @{};                        label = 'Recommended changes for this PC (read-only)'; changes = '' }
     'T' = @{ name = '..\privacy\telemetry-tune.ps1'; args = @{};                     label = 'Turn off Windows ad and diagnostic settings';
