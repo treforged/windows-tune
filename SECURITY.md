@@ -64,3 +64,19 @@ not in scope.
 - Runtime-generated files (`*-revert.ps1`, `*.log`, storage reports) are
   gitignored so a machine's real state is never committed.
 - There is deliberately no `irm <url> | iex` install path. See `NOTICE.md`.
+
+## Release signing (automatic Install mode)
+
+- Install mode installs an update only if its SHA256 matches the digest on the release AND a detached RSA signature
+  (`windows-tune-vX.Y.Z.zip.sig`) verifies against `scripts/update-pubkey.xml`, the key shipped with the copy you
+  already have. The private key is made by `tools/new-signing-key.ps1`, protected with Windows DPAPI, and kept
+  outside every git tree.
+- **A process running as the maintainer's Windows user can sign.** DPAPI protects the key from other users and from
+  other PCs, not from a program already running as the same user on the maintainer's PC. The signature therefore
+  proves "signed on the maintainer's PC under the maintainer's account", not more.
+- **A lost key means one fresh manual install.** DPAPI ties the key to that user on that PC. If the key is lost
+  (reinstall, disk failure), no new release can be signed for copies that carry the old public key; those copies
+  need one manual install of a release that ships a new key. An update never replaces the key, because an update
+  is checked with the key you already trust.
+- The first install is trusted by the SHA256 pinned in `install.ps1` on `main` and the maintainer's GitHub account,
+  not by the signature.
