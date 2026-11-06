@@ -15,12 +15,23 @@
     NEVER while a game is running: the task skips the whole run when a game from the game mode list
     (09-game-mode.json, else 09-game-mode.defaults.json) is running, and re-checks after the download.
 
-    TRUST LIMIT, said plainly: the SHA256 comes from the same GitHub release as the zip. It proves the
-    file is the one the release holds, and that nothing corrupted it on the way. It does NOT prove the
-    publisher: whoever controls the release (or the publisher's GitHub account) controls both the zip
-    and its hash. Automatic install of an elevated tool wants more than that - a signature checked
-    against a public key shipped with the installed copy, and a signing key kept off the machine that
-    builds releases. Until that exists, "Install" trusts the publisher's GitHub account. Check does not.
+    SIGNATURE. The SHA256 comes from the same GitHub release as the zip, so alone it proves only that the
+    file is the release's file. It does NOT prove the publisher: whoever controls the release controls the
+    hash too. So Install mode ALSO needs a detached RSA/SHA-256 signature (windows-tune-vX.Y.Z.zip.sig,
+    made by tools\sign-release.ps1) that verifies against the public key in scripts\update-pubkey.xml,
+    the key shipped with the INSTALLED copy. It refuses without the key file, without the .sig, with a
+    signature made by another key, or when the zip was changed after signing. The private key lives on
+    the maintainer's PC, outside every repo (tools\new-signing-key.ps1).
+
+    LIMITS, said plainly:
+      - The public key itself reaches a PC with the first install. That install is trusted by the SHA256
+        pinned in install.ps1 on the main branch, so the first-install trust path is that pin and the
+        maintainer's GitHub account, not the signature.
+      - A new key cannot be pushed by an update (an update is verified with the OLD key). Rotating the key
+        means a fresh manual install. If the private key is lost, installs carrying the old public key
+        cannot take another automatic update.
+      - A signature proves the maintainer signed those bytes. It does not prove the bytes are free of bugs.
+    Check mode downloads and installs nothing, so it needs no key.
 
 .PARAMETER Status
     Read-only. Shows the mode, the scheduled task, the installed version and the last notice. Default.
@@ -85,14 +96,47 @@ function Test-GameRunning {
 
 function Get-UpdateAction {
     # What one scheduled run should do. Order matters: Off first, then game, then what GitHub said.
-    param([string]$Mode, $Verdict, [bool]$GameRunning, [bool]$SafeToInstall)
+    param([string]$Mode, $Verdict, [bool]$GameRunning, [bool]$SafeToInstall, [bool]$KeyShipped = $true)
     if ($Mode -notin 'Check', 'Install') { return 'Off' }
     if ($GameRunning) { return 'SkipGame' }
     if (-not $Verdict -or $Verdict.Status -eq 'Unknown') { return 'SkipUnknown' }
     if ($Verdict.Status -ne 'Newer') { return 'UpToDate' }
     if ($Mode -eq 'Check') { return 'Notify' }
+    if (-not $KeyShipped) { return 'SkipNoKey' }
     if (-not $SafeToInstall) { return 'SkipUnsafeFolder' }
     return 'Install'
+}
+
+function Get-KeyFingerprint {
+    # SHA-256 (hex) of modulus + exponent of a public key in .NET XML form, or $null when it is not a usable key.
+    param([AllowNull()][string]$PublicKeyXml)
+    if ([string]::IsNullOrWhiteSpace($PublicKeyXml)) { return $null }
+    $r = New-Object System.Security.Cryptography.RSACryptoServiceProvider
+    try {
+        $r.FromXmlString($PublicKeyXml)
+        $q = $r.ExportParameters($false)
+        $sha = [Security.Cryptography.SHA256]::Create()
+        return (($sha.ComputeHash([byte[]]($q.Modulus + $q.Exponent)) | ForEach-Object { $_.ToString('x2') }) -join '')
+    } catch { return $null } finally { $r.Dispose() }
+}
+
+function Test-ReleaseSignature {
+    # $null when SignatureText (base64) is a valid RSA/SHA-256 signature over the zip's bytes made by the key in
+    # PublicKeyXml; otherwise a sentence naming why not. Every doubt is a refusal.
+    param([byte[]]$ZipBytes, [AllowNull()][string]$SignatureText, [AllowNull()][string]$PublicKeyXml)
+    if ([string]::IsNullOrWhiteSpace($PublicKeyXml)) { return 'no public key is shipped with this install (scripts\update-pubkey.xml), so a signature cannot be checked' }
+    if ($PublicKeyXml -match '<(D|P|Q|DP|DQ|InverseQ)>') { return 'the shipped key file holds private key parts, so it is not trusted' }
+    if ([string]::IsNullOrWhiteSpace($SignatureText)) { return 'the release has no signature file (.sig)' }
+    if ($SignatureText.Length -gt 4096) { return 'the signature file is too large to be a signature' }
+    if ($null -eq $ZipBytes -or $ZipBytes.Length -eq 0) { return 'the zip is empty' }
+    try { $sig = [Convert]::FromBase64String($SignatureText.Trim()) } catch { return 'the signature file is not base64' }
+    $r = New-Object System.Security.Cryptography.RSACryptoServiceProvider
+    try {
+        try { $r.FromXmlString($PublicKeyXml) } catch { return 'the shipped public key could not be read' }
+        if ($r.KeySize -lt 2048) { return "the shipped key is only $($r.KeySize) bits" }
+        if (-not $r.VerifyData($ZipBytes, 'SHA256', $sig)) { return 'the signature does not match this zip and this key (changed after signing, or signed by another key)' }
+        return $null
+    } catch { return "the signature could not be checked: $($_.Exception.Message)" } finally { $r.Dispose() }
 }
 
 function Test-UpdateZipEntries {
@@ -134,6 +178,8 @@ function Get-FunctionText {
 if ($MyInvocation.InvocationName -eq '.') { return }   # dot-sourced by a test: functions only
 
 # ------------------------------------------------------------------ main ----
+$pubKeyPath = Join-Path $here 'update-pubkey.xml'
+function Get-ShippedKey { if (Test-Path -LiteralPath $pubKeyPath -PathType Leaf) { Get-Content -LiteralPath $pubKeyPath -Raw } else { $null } }
 $modePath   = Join-Path $here '10-update-mode.json'
 $noticePath = Join-Path $here '10-update-notice.txt'
 $logPath    = Join-Path $here '10-update.log'
@@ -179,6 +225,8 @@ function Show-Status {
     $mode = Get-SavedMode
     Write-Host "Update mode: $mode   (Off = default: nothing is checked)" -ForegroundColor Cyan
     Write-Host "Installed version: $(Get-InstalledVersion)"
+    $fp = Get-KeyFingerprint (Get-ShippedKey)
+    Write-Host "Release signing key: $(if ($fp) { "fingerprint $fp" } else { 'NONE shipped - Install mode is unavailable (Check still works)' })"
     $t = Get-ScheduledTask -TaskName $TASK_NAME -ErrorAction SilentlyContinue
     Write-Host "Scheduled task '$TASK_NAME': $(if ($t) { $t.State } else { 'not registered' })"
     if (Test-Path -LiteralPath $noticePath) { Write-Host "`nLast notice:" -ForegroundColor Yellow; Get-Content -LiteralPath $noticePath | ForEach-Object { Write-Host "  $_" } }
@@ -190,6 +238,10 @@ $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIden
 
 function Set-UpdateMode {
     param([string]$Mode)
+    if ($Mode -eq 'Install' -and -not (Get-KeyFingerprint (Get-ShippedKey))) {
+        Write-Host 'REFUSED to turn Install on: this copy ships no release signing key (scripts\update-pubkey.xml), so a download could not be verified against the publisher. Use Check, or install a release that ships the key. Nothing was changed.' -ForegroundColor Red
+        exit 5
+    }
     if ($Mode -ne 'Off') {
         $risk = Get-FolderRisk
         if ($risk) {
@@ -253,6 +305,14 @@ function Invoke-UpdateInstall {
         if ($actual -ne $Verdict.Digest) { throw "SHA256 mismatch: expected $($Verdict.Digest), got $actual. Nothing was installed." }
         Write-UpdateLog "SHA256 verified: $actual" 'Green'
 
+        # The signature, against the key shipped with THIS install. Not the key inside the new zip.
+        if (-not $Verdict.SigUrl) { throw 'The release publishes no .sig file. Nothing was installed.' }
+        $sigResp = Invoke-WebRequest -UseBasicParsing -Uri $Verdict.SigUrl -TimeoutSec 60
+        $sigText = if ($sigResp.Content -is [byte[]]) { [Text.Encoding]::ASCII.GetString($sigResp.Content) } else { [string]$sigResp.Content }
+        $sigBad = Test-ReleaseSignature -ZipBytes ([IO.File]::ReadAllBytes($zip)) -SignatureText $sigText -PublicKeyXml (Get-ShippedKey)
+        if ($sigBad) { throw "Signature check failed: $sigBad. Nothing was installed." }
+        Write-UpdateLog 'Signature verified against the shipped release key.' 'Green'
+
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $za = [IO.Compression.ZipFile]::OpenRead($zip)
         try {
@@ -297,16 +357,17 @@ function Invoke-UpdateRun {
     $verdict = if ($mode -eq 'Off' -or $gameNow) { $null } else { Get-LatestVerdict }
     $risk = if ($mode -eq 'Install') { Get-FolderRisk } else { $null }
     $safe = ($mode -eq 'Install') -and (-not $risk) -and $isAdmin
-    $action = Get-UpdateAction -Mode $mode -Verdict $verdict -GameRunning $gameNow -SafeToInstall $safe
+    $action = Get-UpdateAction -Mode $mode -Verdict $verdict -GameRunning $gameNow -SafeToInstall $safe -KeyShipped ([bool](Get-KeyFingerprint (Get-ShippedKey)))
     Write-UpdateLog "Update run: mode $mode -> $action" 'Cyan'
     switch ($action) {
         'Off'              { Write-Host 'Automatic updates are off. Nothing was checked.' }
         'SkipGame'         { Write-UpdateLog 'A game is running. Nothing was checked or installed.' 'Yellow' }
         'SkipUnknown'      { Write-UpdateLog 'Update status UNKNOWN. This is not a claim you are up to date.' 'Yellow' }
         'UpToDate'         { Write-UpdateLog "windows-tune $($verdict.Installed) is the latest release." 'Green'; Remove-Item -LiteralPath $noticePath -ErrorAction SilentlyContinue }
+        'SkipNoKey'        { Write-UpdateLog 'Install refused: this copy ships no release signing key. A notice was written instead.' 'Red' }
         'SkipUnsafeFolder' { Write-UpdateLog "Install refused: $(if ($risk) { $risk } else { 'this run is not elevated' }). A notice was written instead." 'Red' }
     }
-    if ($action -in 'Notify', 'SkipUnsafeFolder') {
+    if ($action -in 'Notify', 'SkipUnsafeFolder', 'SkipNoKey') {
         $text = "A newer windows-tune is available: $($verdict.Latest) (you have $($verdict.Installed)). Checked $(Get-Date -Format s). Update with install.ps1, or choose Install in menu V."
         if ($DryRun) { Write-Host "DRY RUN - would write notice: $text" -ForegroundColor Cyan } else { Set-Content -LiteralPath $noticePath -Value $text -Encoding ASCII; Write-UpdateLog $text 'Cyan' }
     }
@@ -325,16 +386,17 @@ if ($Configure) {
     $chosen = switch ($pick) { '1' { 'Off' } '2' { 'Check' } '3' { 'Install' } default { $null } }
     if (-not $chosen) { Write-Host 'Nothing changed.'; exit 0 }
     if ($chosen -eq 'Install') {
-        Write-Host "`nREAD THIS: Install replaces an administrator-level tool without asking you. Each update is checked against" -ForegroundColor Yellow
-        Write-Host 'the SHA256 that the same GitHub release publishes. That catches a damaged or swapped download. It does not' -ForegroundColor Yellow
-        Write-Host 'prove who published it: whoever controls the release controls the hash too. A previous copy is kept, and menu R restores it.' -ForegroundColor Yellow
+        Write-Host "`nREAD THIS: Install replaces an administrator-level tool without asking you. Each update must match the SHA256" -ForegroundColor Yellow
+        Write-Host 'GitHub publishes AND carry a signature that verifies against the release key shipped with this copy. A copy' -ForegroundColor Yellow
+        Write-Host 'without that key refuses. Limits: this copy was trusted at first install by the SHA256 pinned in install.ps1,' -ForegroundColor Yellow
+        Write-Host 'and a new key needs a fresh manual install. A previous copy is kept, and menu R restores it.' -ForegroundColor Yellow
         if ((Read-Host 'Type INSTALL to turn this on') -cne 'INSTALL') { Write-Host 'Nothing changed.'; exit 0 }
     }
     Set-UpdateMode $chosen
     exit 0
 }
 if ($SetMode) {
-    if ($SetMode -eq 'Install' -and -not $Yes -and -not $DryRun) { throw 'Install needs -Yes: it installs an administrator-level tool without asking, trusting the publisher''s GitHub account (see Get-Help).' }
+    if ($SetMode -eq 'Install' -and -not $Yes -and -not $DryRun) { throw 'Install needs -Yes: it installs an administrator-level tool without asking, after a SHA256 and signature check (see Get-Help for the limits).' }
     Set-UpdateMode $SetMode
     exit 0
 }

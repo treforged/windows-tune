@@ -1270,6 +1270,122 @@ else {
     Pass "Get-OptionPlan's ReadOnly rows ($($ro29 -join ',')) were compared with every menu row"
 }
 
+# --- stage 30: Install mode refuses without a valid release signature (missing .sig, wrong key, tampered zip) ----
+# Real RSA keys are made in temp folders by tools\new-signing-key.ps1 (never in a repo, never the real key dir),
+# a fixture zip is signed by tools\sign-release.ps1, and Test-ReleaseSignature is CALLED on every shape of failure.
+$nk30 = Join-Path $repo 'tools\new-signing-key.ps1'
+$sr30 = Join-Path $repo 'tools\sign-release.ps1'
+foreach ($f30 in $nk30, $sr30) {
+    if (-not (Test-Path $f30)) { Fail "$f30 is missing - stage 30 checked nothing"; continue }
+    $e30 = $null; [void][System.Management.Automation.Language.Parser]::ParseFile($f30, [ref]$null, [ref]$e30)
+    if ($e30.Count) { Fail "$(Split-Path -Leaf $f30) does not parse: $($e30[0].Message)" }
+    if ((Get-Content $f30 -Raw) -match '[^\x00-\x7F]') { Fail "$(Split-Path -Leaf $f30) has non-ASCII characters" }
+}
+$t30 = Join-Path $env:TEMP ('wt-sig-' + [Guid]::NewGuid())
+try {
+    New-Item -ItemType Directory -Path $t30 | Out-Null
+    $pubA = Join-Path $t30 'a.pub.xml'; $pubB = Join-Path $t30 'b.pub.xml'
+    $outA = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File $nk30 -KeyDir (Join-Path $t30 'keyA') -WritePublicKeyTo $pubA 2>&1 }) -join "`n"
+    $exitA = $LASTEXITCODE
+    $outB = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File $nk30 -KeyDir (Join-Path $t30 'keyB') -WritePublicKeyTo $pubB 2>&1 }) -join "`n"
+    if ($exitA -eq 0 -and (Test-Path $pubA) -and (Test-Path $pubB) -and $outA -match 'FINGERPRINT') { Pass 'new-signing-key.ps1 made two key pairs and printed a fingerprint' } else { Fail "new-signing-key.ps1: exit $exitA`n$outA" }
+    # nothing private is printed or written to the public file
+    $privHit30 = ($outA + $outB + (Get-Content $pubA -Raw) + (Get-Content $pubB -Raw)) -match '<(D|P|Q|DP|DQ|InverseQ)>'
+    if (-not $privHit30) { Pass 'new-signing-key.ps1 prints and writes no private key parts' } else { Fail 'new-signing-key.ps1 leaked private key parts (D, P, Q ...)' }
+    $privFile30 = Join-Path $t30 'keyA\private.dpapi'
+    $head30 = [IO.File]::ReadAllBytes($privFile30)[0..3] -join ','
+    if ($head30 -eq '1,0,0,0' -and ([Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($privFile30)) -notmatch '<RSAKeyValue')) { Pass 'the private key file is a DPAPI blob, not readable XML' } else { Fail "the private key file is not DPAPI-protected (header $head30)" }
+    # never overwrite, never inside a git tree
+    $again30 = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File $nk30 -KeyDir (Join-Path $t30 'keyA') 2>&1 }) -join "`n"
+    if ($LASTEXITCODE -ne 0 -and $again30 -match 'never overwritten') { Pass 'new-signing-key.ps1 refuses to overwrite an existing key' } else { Fail "overwrite not refused: exit $LASTEXITCODE`n$again30" }
+    $inTree30 = Join-Path $repo 'wt-test-keydir-should-not-exist'
+    $tree30 = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File $nk30 -KeyDir $inTree30 2>&1 }) -join "`n"
+    if ($LASTEXITCODE -ne 0 -and $tree30 -match 'inside a git working tree' -and -not (Test-Path $inTree30)) { Pass 'new-signing-key.ps1 refuses a key folder inside a git tree and creates nothing' } else { Fail "in-tree key folder not refused: exit $LASTEXITCODE`n$tree30"; Remove-Item -Recurse -Force $inTree30 -ErrorAction SilentlyContinue }
+
+    # sign a fixture zip with key A
+    $payload30 = Join-Path $t30 'payload.txt'; Set-Content $payload30 'windows-tune fixture' -Encoding ascii
+    $zip30 = Join-Path $t30 'fixture.zip'; Compress-Archive -Path $payload30 -DestinationPath $zip30
+    $so30 = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File $sr30 -Zip $zip30 -KeyDir (Join-Path $t30 'keyA') 2>&1 }) -join "`n"
+    $sigPath30 = "$zip30.sig"
+    if ($LASTEXITCODE -eq 0 -and (Test-Path $sigPath30)) { Pass 'sign-release.ps1 wrote a .sig' } else { Fail "sign-release.ps1: exit $LASTEXITCODE`n$so30" }
+    $pkA = Get-Content $pubA -Raw; $pkB = Get-Content $pubB -Raw
+    $sig30 = if (Test-Path $sigPath30) { Get-Content $sigPath30 -Raw } else { '' }
+    $bytes30 = [IO.File]::ReadAllBytes($zip30)
+    $tampered30 = $bytes30.Clone(); $tampered30[$tampered30.Length - 5] = $tampered30[$tampered30.Length - 5] -bxor 0xFF
+    $otherSig30 = ''
+    $zipB30 = Join-Path $t30 'fixtureB.zip'; Copy-Item $zip30 $zipB30
+    [void](& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File $sr30 -Zip $zipB30 -KeyDir (Join-Path $t30 'keyB') 2>&1 })
+    if (Test-Path "$zipB30.sig") { $otherSig30 = Get-Content "$zipB30.sig" -Raw }
+    $sigCases30 = @(
+        @{ n = 'a good signature, right key';              z = $bytes30;    s = $sig30;                 k = $pkA; ok = $true  }
+        @{ n = 'a MISSING .sig (null)';                    z = $bytes30;    s = $null;                  k = $pkA; ok = $false }
+        @{ n = 'a MISSING .sig (empty)';                   z = $bytes30;    s = '   ';                  k = $pkA; ok = $false }
+        @{ n = 'the WRONG key (signed by B, shipped A)';   z = $bytes30;    s = $otherSig30;            k = $pkA; ok = $false }
+        @{ n = 'the WRONG key (signed by A, shipped B)';   z = $bytes30;    s = $sig30;                 k = $pkB; ok = $false }
+        @{ n = 'a TAMPERED zip';                           z = $tampered30; s = $sig30;                 k = $pkA; ok = $false }
+        @{ n = 'a signature that is not base64';           z = $bytes30;    s = '!!not base64!!';       k = $pkA; ok = $false }
+        @{ n = 'base64 that is not a signature';           z = $bytes30;    s = 'AAAA';                 k = $pkA; ok = $false }
+        @{ n = 'an oversize signature file';               z = $bytes30;    s = ('A' * 5000);           k = $pkA; ok = $false }
+        @{ n = 'NO shipped public key (null)';             z = $bytes30;    s = $sig30;                 k = $null; ok = $false }
+        @{ n = 'a shipped key file that is not a key';     z = $bytes30;    s = $sig30;                 k = '<RSAKeyValue>nope</RSAKeyValue>'; ok = $false }
+        @{ n = 'a shipped key file holding private parts'; z = $bytes30;    s = $sig30;                 k = ($pkA -replace '</RSAKeyValue>', '<D>AAAA</D></RSAKeyValue>'); ok = $false }
+        @{ n = 'an empty zip';                             z = [byte[]]@();  s = $sig30;                 k = $pkA; ok = $false }
+    )
+    foreach ($c30 in $sigCases30) {
+        $why30 = Test-ReleaseSignature -ZipBytes $c30.z -SignatureText $c30.s -PublicKeyXml $c30.k
+        if ([bool]($null -eq $why30) -eq $c30.ok) { Pass "Test-ReleaseSignature on $($c30.n) -> $(if ($why30) { 'refused' } else { 'accepted' })" }
+        else { Fail "Test-ReleaseSignature on $($c30.n): $(if ($why30) { "refused ($why30)" } else { 'accepted' }), expected $(if ($c30.ok) { 'accepted' } else { 'refused' })" }
+    }
+    $fpA30 = Get-KeyFingerprint $pkA; $fpB30 = Get-KeyFingerprint $pkB
+    if ($fpA30 -match '^[0-9a-f]{64}$' -and $fpA30 -ne $fpB30 -and -not (Get-KeyFingerprint $null) -and -not (Get-KeyFingerprint 'junk')) { Pass 'Get-KeyFingerprint: 64 hex for a key, different per key, $null for nothing or junk' } else { Fail 'Get-KeyFingerprint wrong' }
+} finally { Remove-Item -Recurse -Force $t30 -ErrorAction SilentlyContinue }
+
+# no key, no Install: the action and the mode switch both refuse
+$newer30 = [pscustomobject]@{ Status = 'Newer'; Installed = 'v1.0.0'; Latest = 'v1.2.0' }
+$a30 = Get-UpdateAction -Mode 'Install' -Verdict $newer30 -GameRunning $false -SafeToInstall $true -KeyShipped $false
+if ($a30 -eq 'SkipNoKey') { Pass 'Get-UpdateAction: Install, newer, safe, NO shipped key -> SkipNoKey' } else { Fail "Get-UpdateAction without a key said $a30" }
+$a30 = Get-UpdateAction -Mode 'Check' -Verdict $newer30 -GameRunning $false -SafeToInstall $true -KeyShipped $false
+if ($a30 -eq 'Notify') { Pass 'Get-UpdateAction: Check needs no key -> Notify' } else { Fail "Get-UpdateAction Check without a key said $a30" }
+$run30 = Join-Path $env:TEMP ('wt-nokey-' + [Guid]::NewGuid())
+try {
+    New-Item -ItemType Directory -Path (Join-Path $run30 'scripts') -Force | Out-Null
+    foreach ($n30 in 'windows-tune.ps1', 'install.ps1', 'VERSION') { Copy-Item (Join-Path $repo $n30) $run30 }
+    foreach ($n30 in '10-auto-update.ps1', '07-update-check.ps1') { Copy-Item (Join-Path $repo "scripts\$n30") (Join-Path $run30 'scripts') }
+    $o30 = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $run30 'scripts\10-auto-update.ps1') -SetMode Install -Yes -DryRun 2>&1 }) -join "`n"
+    if ($LASTEXITCODE -eq 5 -and $o30 -match 'ships no release signing key') { Pass '10 -SetMode Install on a copy with no key: exit 5, refused' } else { Fail "10 -SetMode Install with no key: exit $LASTEXITCODE`n$o30" }
+} finally { Remove-Item -Recurse -Force $run30 -ErrorAction SilentlyContinue }
+
+# the verdict carries the .sig URL only from this repo's release page
+$ast30 = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $repo 'scripts\07-update-check.ps1'), [ref]$null, [ref]$null)
+$vf30 = $ast30.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-UpdateVerdict' }, $true)
+. ([scriptblock]::Create($vf30.Extent.Text))
+$base30 = 'https://github.com/treforged/windows-tune/releases/download/v1.2.0/'
+$dg30 = 'sha256:' + ('ab' * 32)
+function New-Rel30($sigUrl) {
+    $assets = @([pscustomobject]@{ name = 'windows-tune-v1.2.0.zip'; digest = $dg30; browser_download_url = $base30 + 'windows-tune-v1.2.0.zip' })
+    if ($sigUrl) { $assets += [pscustomobject]@{ name = 'windows-tune-v1.2.0.zip.sig'; digest = $null; browser_download_url = $sigUrl } }
+    [pscustomobject]@{ tag_name = 'v1.2.0'; assets = $assets }
+}
+$vs30 = (Get-UpdateVerdict -Installed 'v1.1.0' -Latest (New-Rel30 ($base30 + 'windows-tune-v1.2.0.zip.sig'))).SigUrl
+if ($vs30 -eq ($base30 + 'windows-tune-v1.2.0.zip.sig')) { Pass 'Get-UpdateVerdict returns the .sig URL from this repo release' } else { Fail "Get-UpdateVerdict SigUrl was [$vs30]" }
+if (-not (Get-UpdateVerdict -Installed 'v1.1.0' -Latest (New-Rel30 'https://example.invalid/x.sig')).SigUrl) { Pass 'Get-UpdateVerdict drops a .sig URL that is off this repo' } else { Fail 'Get-UpdateVerdict kept an off-repo .sig URL' }
+$vn30 = Get-UpdateVerdict -Installed 'v1.1.0' -Latest (New-Rel30 $null)
+if ($vn30.Status -eq 'Newer' -and -not $vn30.SigUrl) { Pass 'a release with no .sig is still Newer for Check, with no SigUrl for Install' } else { Fail 'unsigned release verdict wrong' }
+
+# source facts: the install path checks the signature with the SHIPPED key, after the hash and before anything is installed;
+# no private key part is anywhere in the repo.
+$src30 = Get-Content (Join-Path $repo 'scripts\10-auto-update.ps1') -Raw
+$ib30 = if ($src30 -match '(?s)function Invoke-UpdateInstall(.*?)\nfunction Invoke-UpdateRun') { $Matches[1] } else { '' }
+$iH = $ib30.IndexOf('Get-FileHash'); $iS = $ib30.IndexOf('Test-ReleaseSignature'); $iF = $ib30.IndexOf('-FromZip'); $iC = $ib30.IndexOf('Copy-Item -LiteralPath $root')
+if ($iH -ge 0 -and $iS -gt $iH -and $iF -gt $iS -and $iC -gt $iS -and $ib30 -match 'PublicKeyXml \(Get-ShippedKey\)') { Pass 'Install verifies the signature with the shipped key, after the hash and before the backup and the install' } else { Fail 'Install does not verify the signature in the right place' }
+$leak30 = @(Get-ChildItem $repo -Recurse -File | Where-Object { $_.FullName -notmatch '\\(\.git|tests)\\' -and $_.Extension -in '.xml', '.ps1', '.md', '.json' } | Select-String -Pattern '<(D|DP|DQ|InverseQ)>[A-Za-z0-9+/=]{20,}' -List)
+if ($leak30.Count -eq 0) { Pass 'no private key part appears anywhere in the repo' } else { Fail "private key parts in: $($leak30.Filename -join ', ')" }
+$shipped30 = Join-Path $repo 'scripts\update-pubkey.xml'
+if (Test-Path $shipped30) {
+    $sk30 = Get-Content $shipped30 -Raw
+    if ($sk30 -notmatch '<(D|P|Q|DP|DQ|InverseQ)>' -and (Get-KeyFingerprint $sk30)) { Pass "scripts\update-pubkey.xml is a public-only RSA key (fingerprint $(Get-KeyFingerprint $sk30))" } else { Fail 'scripts\update-pubkey.xml is not a valid public-only key' }
+} else { Pass 'scripts\update-pubkey.xml is not in the repo yet: Install mode stays unavailable until the maintainer ships the public key' }
+
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green
 exit 0

@@ -9,3 +9,4 @@ evals/
 10-update-notice.txt
 10-update.log
 telemetry-tune-state.json
+*.dpapi

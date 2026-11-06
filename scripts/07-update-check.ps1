@@ -31,7 +31,7 @@ function Get-UpdateVerdict {
         [string]$Installed,
         $Latest
     )
-    $unknown = [pscustomobject]@{ Status = 'Unknown'; Installed = $Installed; Latest = $null; Digest = $null; Url = $null }
+    $unknown = [pscustomobject]@{ Status = 'Unknown'; Installed = $Installed; Latest = $null; Digest = $null; Url = $null; SigUrl = $null }
     if (-not $Installed -or $Installed -notmatch '^v\d+\.\d+\.\d+$') { return $unknown }
     if (-not $Latest -or -not $Latest.tag_name) { return $unknown }
     $tag = [string]$Latest.tag_name
@@ -44,6 +44,14 @@ function Get-UpdateVerdict {
     $url = [string]$asset[0].browser_download_url
     if ($url -notlike "https://github.com/treforged/windows-tune/releases/download/$tag/*") { return $unknown }
 
+    # the detached signature (10-auto-update.ps1 Install mode needs it); absent is fine for a plain check
+    $sigUrl = $null
+    $sigAsset = @($Latest.assets | Where-Object { $_.name -eq "windows-tune-$tag.zip.sig" })
+    if ($sigAsset.Count -eq 1) {
+        $su = [string]$sigAsset[0].browser_download_url
+        if ($su -like "https://github.com/treforged/windows-tune/releases/download/$tag/*") { $sigUrl = $su }
+    }
+
     $iv = [version]$Installed.TrimStart('v')
     $lv = [version]$tag.TrimStart('v')
     $status = if ($lv -gt $iv) { 'Newer' } else { 'UpToDate' }
@@ -53,6 +61,7 @@ function Get-UpdateVerdict {
         Latest    = $tag
         Digest    = $digest.Substring(7).ToLowerInvariant()
         Url       = $url
+        SigUrl    = $sigUrl
     }
 }
 
