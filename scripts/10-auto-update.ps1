@@ -144,8 +144,8 @@ function Test-UpdateZipEntries {
     param([string[]]$Names, [string]$Tag)
     if (-not $Names -or $Names.Count -eq 0) { return 'the zip is empty' }
     $tops = @{}
-    # every extension in the v1.1.0 release zip: .py is an inert lab script, .gitignore is how GetExtension reads a dotfile
-    $allowedExt = '.ps1', '.md', '.json', '.cmd', '.txt', '.mjs', '.py', '.gitignore', ''
+    # every extension in the release zip: .py is an inert lab script, .gitignore is how GetExtension reads a dotfile, .xml is the public key
+    $allowedExt = '.ps1', '.md', '.json', '.cmd', '.txt', '.mjs', '.py', '.gitignore', '.xml', ''
     foreach ($raw in $Names) {
         $n = ([string]$raw) -replace '\\', '/'
         if ($n -match '(^|/)\.\.(/|$)' -or $n.StartsWith('/') -or $n -match '^[A-Za-z]:' -or $n -match '[\x00-\x1f]') { return "the zip has an unsafe path: $raw" }

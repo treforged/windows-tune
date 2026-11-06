@@ -1092,7 +1092,7 @@ if (Get-Command Get-UpdateAction -ErrorAction SilentlyContinue) {
         $got27 = Get-UpdateAction -Mode $c27.m -Verdict $c27.v -GameRunning $c27.g -SafeToInstall $c27.s
         if ($got27 -eq $c27.w) { Pass "Get-UpdateAction on $($c27.n) -> $got27" } else { Fail "Get-UpdateAction on $($c27.n) said $got27, expected $($c27.w)" }
     }
-    $good27 = @('windows-tune-v1.2.0/windows-tune.ps1', 'windows-tune-v1.2.0/install.ps1', 'windows-tune-v1.2.0/VERSION', 'windows-tune-v1.2.0/NOTICE.md', 'windows-tune-v1.2.0/scripts/10-auto-update.ps1', 'windows-tune-v1.2.0/LICENSE', 'windows-tune-v1.2.0/scripts/', 'windows-tune-v1.2.0/.gitignore', 'windows-tune-v1.2.0/.githooks/pre-commit', 'windows-tune-v1.2.0/labs/head-parallax/head_parallax.py', 'windows-tune-v1.2.0/privacy/telemetry-tune.ps1')   # the dotfile, hook and lab names are the real v1.1.0 layout
+    $good27 = @('windows-tune-v1.2.0/windows-tune.ps1', 'windows-tune-v1.2.0/install.ps1', 'windows-tune-v1.2.0/VERSION', 'windows-tune-v1.2.0/NOTICE.md', 'windows-tune-v1.2.0/scripts/10-auto-update.ps1', 'windows-tune-v1.2.0/LICENSE', 'windows-tune-v1.2.0/scripts/', 'windows-tune-v1.2.0/.gitignore', 'windows-tune-v1.2.0/.githooks/pre-commit', 'windows-tune-v1.2.0/labs/head-parallax/head_parallax.py', 'windows-tune-v1.2.0/privacy/telemetry-tune.ps1', 'windows-tune-v1.2.0/scripts/update-pubkey.xml', 'windows-tune-v1.2.0/tools/sign-release.ps1')   # the dotfile, hook and lab names are the real v1.1.0 layout
     $zipCases27 = @(
         @{ n = 'a normal release zip';     e = $good27;                                                   w = $false }
         @{ n = 'a ../ path';               e = $good27 + 'windows-tune-v1.2.0/../evil.ps1';               w = $true }
