@@ -17,7 +17,7 @@
     read-only options only, and an elevated run refuses with exit 4.
 
 .PARAMETER Choice
-    Run one menu option without showing the menu, then exit: 1-9, G, R or Q.
+    Run one menu option without showing the menu, then exit: 1-9, G, U, V, P, T, Y, L, B, D, S, R or Q.
 
 .PARAMETER AcceptRisk
     Skip the I ACCEPT prompt. The elevated relaunch passes this so you are not
@@ -25,9 +25,9 @@
     before a change - see -Yes.
 
 .PARAMETER NoElevate
-    Do not relaunch elevated. Only the storage report (1), the antivirus status
-    check (2), the game mode preview (8) and the revert-file listing (R) work
-    without administrator rights; the rest will refuse.
+    Do not relaunch elevated. Only the read-only options (1, 2, 8, U, P, S) and
+    the revert-file listing (R) work without administrator rights; the rest
+    will refuse.
 
 .PARAMETER Yes
     Answer y to the "Run it?" confirmation. Never answers the I ACCEPT prompt.
@@ -41,7 +41,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('1', '2', '3', '4', '5', '6', '7', '8', '9', 'G', 'R', 'Q')][string]$Choice,
+    [ValidateSet('1', '2', '3', '4', '5', '6', '7', '8', '9', 'G', 'U', 'V', 'P', 'T', 'Y', 'L', 'B', 'D', 'S', 'R', 'Q')][string]$Choice,
     [switch]$AcceptRisk,
     [switch]$NoElevate,
     [switch]$Yes
@@ -134,10 +134,10 @@ if ($isAdmin -and $selfRisk) {
 }
 if (-not $isAdmin) {
     if ($NoElevate) {
-        Write-Host 'Not elevated: only the storage report (1), the antivirus status check (2), the game mode preview (8) and the revert list (R) will work.' -ForegroundColor Yellow
+        Write-Host 'Not elevated: only the read-only options (1, 2, 8, U, P, S) and the revert list (R) will work.' -ForegroundColor Yellow
     } elseif ($selfRisk) {
         Write-Host "Not elevating: $selfRisk, so a program running as you could change what runs as administrator." -ForegroundColor Yellow
-        Write-Host 'Only the storage report (1), the antivirus status check (2), the game mode preview (8) and the revert list (R) will work from here.' -ForegroundColor Yellow
+        Write-Host 'Only the read-only options (1, 2, 8, U, P, S) and the revert list (R) will work from here.' -ForegroundColor Yellow
         Write-Host "  $installHint" -ForegroundColor Yellow
     } else {
         $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-AcceptRisk')
@@ -168,12 +168,27 @@ $menu = [ordered]@{
              changes = 'While a listed game runs: what scripts\09-game-mode.json lists (by default only an upload cap on cloud-sync apps); undone when the game exits or on Ctrl+C; writes 09-game-mode-revert.ps1 while on; runs until you close it' }
     'G' = @{ name = '09-game-mode.ps1';            args = @{ InstallWatcher = $true }; label = 'Game mode: start at every sign-in';
              changes = 'Registers a scheduled task that runs game mode hidden, as admin, at every sign-in; refused outside Program Files; writes 09-game-mode-watcher-revert.ps1' }
+    'U' = @{ name = '10-auto-update.ps1';          args = @{ Status = $true };         label = 'Update settings (read-only)';          changes = '' }
+    'V' = @{ name = '10-auto-update.ps1';          args = @{ Configure = $true };      label = 'Updates: choose Off, Check or Install';
+             changes = 'Asks which mode you want. Off (default) checks nothing. Check registers a scheduled task that looks for a new release at sign-in and daily and leaves a notice. Install also downloads, SHA256-checks and installs it, never while a game runs, keeping the previous copy; refused outside Program Files; writes 10-update-task-revert.ps1' }
+    'P' = @{ name = '..\privacy\privacy-audit.ps1';  args = @{};                       label = 'Privacy audit (read-only)';            changes = '' }
+    'S' = @{ name = '11-recommended.ps1';          args = @{};                        label = 'Recommended changes for this PC (read-only)'; changes = '' }
+    'T' = @{ name = '..\privacy\telemetry-tune.ps1'; args = @{};                     label = 'Turn off Windows ad and diagnostic settings';
+             changes = 'Diagnostic data policy to the lowest level this edition allows, advertising ID, tailored experiences and activity-feed publishing; records the old values and writes telemetry-tune-revert.ps1 first' }
+    'Y' = @{ name = '..\privacy\telemetry-tune.ps1'; args = @{ ServicesOnly = $true }; label = 'Disable the DiagTrack and dmwappush services';
+             changes = 'Stops and disables two Windows services (not a Microsoft instruction, and a feature update may re-enable them); records the start types and writes telemetry-tune-revert.ps1 first' }
+    'L' = @{ name = '..\privacy\privacy-tune.ps1';   args = @{};                       label = 'Hide your language list from websites';
+             changes = 'HttpAcceptLanguageOptOut = 1 for your account; writes privacy-tune-revert.ps1 first' }
+    'B' = @{ name = '..\privacy\browser-privacy.ps1'; args = @{};                      label = 'Block third-party cookies in Chrome and Edge';
+             changes = 'Browser policy values (Chrome and Edge then show Managed by your organization; some sites that need third-party cookies stop working); undo with browser-privacy.ps1 -Undo' }
+    'D' = @{ name = '..\privacy\dns-encrypt.ps1';    args = @{};                       label = 'Encrypt DNS lookups (DNS over HTTPS)';
+             changes = 'Turns on DoH auto-upgrade for 1.1.1.1 and 1.0.0.1, checks three names resolve and reverts itself if not; writes dns-encrypt-revert.ps1' }
     'R' = @{ name = '';                            args = @{};                        label = 'List revert files';                    changes = '' }
     'Q' = @{ name = '';                            args = @{};                        label = 'Quit';                                 changes = '' }
 }
 
 function Show-RevertFiles {
-    $files = @(Get-ChildItem $scriptsDir -Filter '*-revert.ps1' -ErrorAction SilentlyContinue | Sort-Object Name)
+    $files = @(Get-ChildItem $scriptsDir, (Join-Path $here 'privacy') -Filter '*-revert.ps1' -ErrorAction SilentlyContinue | Sort-Object Name)
     if ($files.Count -eq 0) {
         Write-Host 'No revert files yet - nothing has been changed on this machine.' -ForegroundColor Green
         return

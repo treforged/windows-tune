@@ -647,7 +647,7 @@ if (-not $planFn20) {
 }
 # every option's label is the menu's label for the same key, and its -Choice is that key
 $argRows20 = [regex]::Matches($guiText20, "Label = '([^']+)';\s+Args = '-Choice ([0-9A-Z])( -AcceptRisk)?(?: -NoElevate)?( -Yes)?'")
-if ($argRows20.Count -ne 10) { Fail "windows-tune-gui.ps1 has $($argRows20.Count) option rows, expected 10 - stage 20 checked nothing" }
+if ($argRows20.Count -ne 19) { Fail "windows-tune-gui.ps1 has $($argRows20.Count) option rows, expected 19 - stage 20 checked nothing" }
 # and the other way round: every menu row that runs a script has a GUI row, so no action exists in one surface only
 $menuKeys20 = @([regex]::Matches($menuText20, "(?m)^\s*'([0-9A-Z])' = @\{ name = '[^']+\.ps1'") | ForEach-Object { $_.Groups[1].Value })
 $guiKeys20 = @($argRows20 | ForEach-Object { $_.Groups[2].Value })
@@ -676,21 +676,21 @@ foreach ($r20 in $argRows20) {
 # The README said every script writes a revert file. Only 01 and 02 do. This
 # stage asserts the README's stated list against the scripts themselves, so the
 # claim cannot drift from the code again.
-$revertScripts21 = @(Get-ChildItem (Join-Path $repo 'scripts') -Filter '0*.ps1' | Where-Object {
+$revertScripts21 = @(Get-ChildItem (Join-Path $repo 'scripts') -Filter '*.ps1' | Where-Object { $_.Name -match '^\d\d-' } | Where-Object {
     (Get-Content $_.FullName -Raw) -match "Join-Path[^
 ]*'[^']*-revert\.ps1'"
 } | ForEach-Object { $_.Name.Substring(0,2) } | Sort-Object)
 $readme21 = Get-Content (Join-Path $repo 'README.md') -Raw
-$claimOk21 = $readme21 -match 'Only 01, 02, 08 and 09\s+write a `\*-revert\.ps1`'
+$claimOk21 = $readme21 -match 'Only 01, 02, 08, 09 and 10\s+write a `\*-revert\.ps1`'
 if ($revertScripts21.Count -eq 0) { Fail 'stage 21 found no script that writes a revert file - checked nothing' }
-elseif (($revertScripts21 -join ',') -ne '01,02,08,09') { Fail "scripts that write a revert file are $($revertScripts21 -join ','), expected 01,02,08,09" }
-elseif (-not $claimOk21) { Fail 'README does not state that only 01, 02, 08 and 09 write a revert file' }
-else { Pass 'only 01, 02, 08 and 09 write a revert file, and the README says so' }
+elseif (($revertScripts21 -join ',') -ne '01,02,08,09,10') { Fail "scripts that write a revert file are $($revertScripts21 -join ','), expected 01,02,08,09,10" }
+elseif (-not $claimOk21) { Fail 'README does not state that only 01, 02, 08, 09 and 10 write a revert file' }
+else { Pass 'only 01, 02, 08, 09 and 10 write a revert file, and the README says so' }
 
 # --- stage 22: privacy\ scripts (imported from net-tune) are portable and the audit runs --
 # Each script must exist, be ASCII, and carry nothing from the author's PC. The
 # detector is proven on a planted bad line, and the read-only audit is RUN.
-$privFiles22 = @('privacy-tune.ps1','privacy-audit.ps1','browser-privacy.ps1','dns-encrypt.ps1')
+$privFiles22 = @('privacy-tune.ps1','privacy-audit.ps1','browser-privacy.ps1','dns-encrypt.ps1','telemetry-tune.ps1')
 $badRe22 = '(?i)tvonh|surfshark|\\Desktop\\(getforgenta|forged-glass|claudecontext)|192\.168\.|\bGus\b|\d{3}[-. ]\d{3}[-. ]\d{4}'
 $seen22 = 0
 foreach ($n in $privFiles22) {
@@ -1034,6 +1034,241 @@ try {
         else { Fail "09 -Watch without admin: exit $LASTEXITCODE`n$out26" }
     } else { Pass 'stage 26 -Watch refusal skipped: this gate is ELEVATED, and -Watch would really watch' }
 } finally { Remove-Item -Recurse -Force $gmRun26 -ErrorAction SilentlyContinue }
+
+# --- stage 27: automatic updates (10) are OFF by default, never install on a bad read, never during a game ----
+# The pure functions of 10-auto-update.ps1 are dot-sourced (its guard returns before it touches anything) and
+# CALLED with fixtures. Then the script is pressed from a scratch copy: it must refuse to switch updates on
+# from a folder a normal program can write, and it must not write a file or register a task while Off.
+$upd27 = Join-Path $repo 'scripts\10-auto-update.ps1'
+$errors = $null
+[void][System.Management.Automation.Language.Parser]::ParseFile($upd27, [ref]$null, [ref]$errors)
+if ($errors.Count) { Fail "10-auto-update.ps1 does not parse: $($errors[0].Message)" }
+. $upd27
+foreach ($fn27 in 'Read-UpdateMode', 'Test-GameRunning', 'Get-UpdateAction', 'Test-UpdateZipEntries') {
+    if (-not (Get-Command $fn27 -ErrorAction SilentlyContinue)) { Fail "10-auto-update.ps1 has no $fn27 - stage 27 checked nothing" }
+}
+if (Get-Command Get-UpdateAction -ErrorAction SilentlyContinue) {
+    $modeCases27 = @(
+        @{ n = 'no file';            j = $null;                    w = 'Off' }
+        @{ n = 'empty text';         j = '   ';                    w = 'Off' }
+        @{ n = 'garbage';            j = '{not json';              w = 'Off' }
+        @{ n = 'an unknown mode';    j = '{ "mode": "Bogus" }';    w = 'Off' }
+        @{ n = 'no mode key';        j = '{ "x": 1 }';             w = 'Off' }
+        @{ n = 'Check';              j = '{ "mode": "Check" }';    w = 'Check' }
+        @{ n = 'Install';            j = '{ "mode": "Install" }';  w = 'Install' }
+    )
+    foreach ($c27 in $modeCases27) {
+        $got27 = Read-UpdateMode $c27.j
+        if ("$got27" -eq $c27.w) { Pass "Read-UpdateMode on $($c27.n) -> $got27" } else { Fail "Read-UpdateMode on $($c27.n) said '$got27', expected $($c27.w)" }
+    }
+    $gameCases27 = @(
+        @{ n = 'a listed game is running';   g = @('cs2.exe', 'dota2.exe'); r = @('explorer', 'cs2');   w = $true }
+        @{ n = 'no listed game is running';  g = @('cs2.exe', 'dota2.exe'); r = @('explorer', 'code');  w = $false }
+        @{ n = 'a game list that is $null';  g = $null;                     r = @('code');              w = $true }
+        @{ n = 'an empty game list';         g = @();                       r = @('code');              w = $true }
+        @{ n = 'a process list that is $null'; g = @('cs2.exe');            r = $null;                  w = $true }
+    )
+    foreach ($c27 in $gameCases27) {
+        $got27 = Test-GameRunning -Games $c27.g -Running $c27.r
+        if ($got27 -eq $c27.w) { Pass "Test-GameRunning with $($c27.n) -> $got27" } else { Fail "Test-GameRunning with $($c27.n) said $got27, expected $($c27.w)" }
+    }
+    $newer27 = [pscustomobject]@{ Status = 'Newer'; Installed = 'v1.0.0'; Latest = 'v1.1.0' }
+    $same27 = [pscustomobject]@{ Status = 'UpToDate' }
+    $unk27 = [pscustomobject]@{ Status = 'Unknown' }
+    $act27 = @(
+        @{ n = 'Off with a newer release';                  m = 'Off';     v = $newer27; g = $false; s = $true;  w = 'Off' }
+        @{ n = 'an unknown mode with a newer release';      m = 'Bogus';   v = $newer27; g = $false; s = $true;  w = 'Off' }
+        @{ n = 'Check with a newer release';                m = 'Check';   v = $newer27; g = $false; s = $true;  w = 'Notify' }
+        @{ n = 'Check, a newer release, safe folder (still only a notice)'; m = 'Check'; v = $newer27; g = $false; s = $true; w = 'Notify' }
+        @{ n = 'Install, newer, safe folder, no game';      m = 'Install'; v = $newer27; g = $false; s = $true;  w = 'Install' }
+        @{ n = 'Install, newer, safe folder, A GAME RUNNING'; m = 'Install'; v = $newer27; g = $true; s = $true; w = 'SkipGame' }
+        @{ n = 'Check, a game running';                     m = 'Check';   v = $newer27; g = $true;  s = $true;  w = 'SkipGame' }
+        @{ n = 'Install, newer, folder a program can write'; m = 'Install'; v = $newer27; g = $false; s = $false; w = 'SkipUnsafeFolder' }
+        @{ n = 'Install, status UNKNOWN';                   m = 'Install'; v = $unk27;   g = $false; s = $true;  w = 'SkipUnknown' }
+        @{ n = 'Install, no answer from GitHub';            m = 'Install'; v = $null;    g = $false; s = $true;  w = 'SkipUnknown' }
+        @{ n = 'Install, already up to date';               m = 'Install'; v = $same27;  g = $false; s = $true;  w = 'UpToDate' }
+    )
+    foreach ($c27 in $act27) {
+        $got27 = Get-UpdateAction -Mode $c27.m -Verdict $c27.v -GameRunning $c27.g -SafeToInstall $c27.s
+        if ($got27 -eq $c27.w) { Pass "Get-UpdateAction on $($c27.n) -> $got27" } else { Fail "Get-UpdateAction on $($c27.n) said $got27, expected $($c27.w)" }
+    }
+    $good27 = @('windows-tune-v1.2.0/windows-tune.ps1', 'windows-tune-v1.2.0/install.ps1', 'windows-tune-v1.2.0/VERSION', 'windows-tune-v1.2.0/NOTICE.md', 'windows-tune-v1.2.0/scripts/10-auto-update.ps1', 'windows-tune-v1.2.0/LICENSE', 'windows-tune-v1.2.0/scripts/', 'windows-tune-v1.2.0/.gitignore', 'windows-tune-v1.2.0/.githooks/pre-commit', 'windows-tune-v1.2.0/labs/head-parallax/head_parallax.py', 'windows-tune-v1.2.0/privacy/telemetry-tune.ps1')   # the dotfile, hook and lab names are the real v1.1.0 layout
+    $zipCases27 = @(
+        @{ n = 'a normal release zip';     e = $good27;                                                   w = $false }
+        @{ n = 'a ../ path';               e = $good27 + 'windows-tune-v1.2.0/../evil.ps1';               w = $true }
+        @{ n = 'a backslash traversal';    e = $good27 + 'windows-tune-v1.2.0\..\..\evil.ps1';            w = $true }
+        @{ n = 'an absolute path';         e = $good27 + '/etc/evil.ps1';                                 w = $true }
+        @{ n = 'a drive path';             e = $good27 + 'C:\Windows\evil.ps1';                           w = $true }
+        @{ n = 'an .exe inside';           e = $good27 + 'windows-tune-v1.2.0/scripts/payload.exe';       w = $true }
+        @{ n = 'a .dll inside';            e = $good27 + 'windows-tune-v1.2.0/scripts/payload.dll';       w = $true }
+        @{ n = 'two top-level folders';    e = $good27 + 'other/readme.md';                               w = $true }
+        @{ n = 'no install.ps1';           e = @($good27 | Where-Object { $_ -notlike '*/install.ps1' }); w = $true }
+        @{ n = 'no 10-auto-update.ps1';    e = @($good27 | Where-Object { $_ -notlike '*10-auto-update.ps1' }); w = $true }
+        @{ n = 'an empty zip';             e = @();                                                       w = $true }
+    )
+    foreach ($c27 in $zipCases27) {
+        $bad27 = Test-UpdateZipEntries -Names $c27.e -Tag 'v1.2.0'
+        if ([bool]$bad27 -eq $c27.w) { Pass "Test-UpdateZipEntries on $($c27.n) -> $(if ($bad27) { 'refused' } else { 'accepted' })" } else { Fail "Test-UpdateZipEntries on $($c27.n): $(if ($bad27) { "refused ($bad27)" } else { 'accepted' }), expected $(if ($c27.w) { 'refused' } else { 'accepted' })" }
+    }
+}
+# source facts a fixture cannot reach: the install path is the hash-checked one, nothing is piped to a shell,
+# the game check runs again after the download, and a fresh install ships with nothing switched on.
+$src27 = Get-Content $upd27 -Raw
+$ast27 = [System.Management.Automation.Language.Parser]::ParseFile($upd27, [ref]$null, [ref]$null)
+$iex27 = @($ast27.FindAll({ param($n) $n -is [System.Management.Automation.Language.CommandAst] -and $n.GetCommandName() -in 'iex', 'Invoke-Expression' }, $true))
+if ($iex27.Count -or $src27 -match 'DownloadString') { Fail '10-auto-update.ps1 calls Invoke-Expression or DownloadString' } else { Pass '10-auto-update.ps1 never calls Invoke-Expression (read from the syntax tree, not the comments)' }
+if ($src27 -match '-FromZip \$zip -Sha256 \$Verdict\.Digest') { Pass '10 installs through install.ps1 -FromZip -Sha256 (the hash-checked path)' } else { Fail '10 does not install through install.ps1 -FromZip -Sha256' }
+$instBody27 = if ($src27 -match '(?s)function Invoke-UpdateInstall(.*?)\nfunction Invoke-UpdateRun') { $Matches[1] } else { '' }
+if (-not $instBody27) { Fail 'stage 27 could not find Invoke-UpdateInstall' }
+elseif (([regex]::Matches($instBody27, 'Test-GameNow')).Count -ge 1 -and $instBody27.IndexOf('Test-GameNow') -gt $instBody27.IndexOf('Get-FileHash') -and $instBody27.IndexOf('Test-GameNow') -lt $instBody27.IndexOf('-FromZip')) { Pass '10 checks for a running game again after the download and before it installs' }
+else { Fail '10 does not re-check for a running game between the download and the install' }
+if (($src27 -match 'Get-ScheduledTask|Register-ScheduledTask') -and ((Get-Content (Join-Path $repo 'install.ps1') -Raw) -match 'windows-tune update|10-update-mode')) { Fail 'install.ps1 touches the update task or mode, so a fresh install would not be Off' } else { Pass 'install.ps1 does not switch updates on' }
+if (Test-Path (Join-Path $repo 'scripts\10-update-mode.json')) { Fail 'scripts\10-update-mode.json is in the repo: a fresh install would not be Off' } else { Pass 'no update mode file ships in the repo (default is Off)' }
+$gi27 = Get-Content (Join-Path $repo '.gitignore') -Raw
+if ($gi27 -match '10-update-mode\.json' -and $gi27 -match '10-update-notice\.txt') { Pass '.gitignore keeps the update mode and notice out of commits' } else { Fail '.gitignore does not list 10-update-mode.json and 10-update-notice.txt' }
+# press it, from a scratch copy that any program can write
+$run27 = Join-Path $env:TEMP ('wt-update-' + [Guid]::NewGuid())
+try {
+    New-Item -ItemType Directory -Path (Join-Path $run27 'scripts') -Force | Out-Null
+    foreach ($n27 in 'windows-tune.ps1', 'install.ps1', 'VERSION') { Copy-Item (Join-Path $repo $n27) $run27 }
+    foreach ($n27 in '10-auto-update.ps1', '07-update-check.ps1', '09-game-mode.defaults.json') { Copy-Item (Join-Path $repo "scripts\$n27") (Join-Path $run27 'scripts') }
+    $s27 = Join-Path $run27 'scripts\10-auto-update.ps1'
+    $out27 = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File $s27 2>&1 }) -join "`n"
+    if ($LASTEXITCODE -eq 0 -and $out27 -match 'Update mode: Off' -and $out27 -match 'not registered') { Pass '10 (no arguments) reports Off and no task' } else { Fail "10 status: exit $LASTEXITCODE`n$out27" }
+    $taskBefore27 = @(Get-ScheduledTask -TaskName 'windows-tune update' -ErrorAction SilentlyContinue).Count
+    $out27 = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File $s27 -SetMode Check -DryRun 2>&1 }) -join "`n"
+    $exit27 = $LASTEXITCODE
+    $taskAfter27 = @(Get-ScheduledTask -TaskName 'windows-tune update' -ErrorAction SilentlyContinue).Count
+    if ($exit27 -eq 4 -and $out27 -match 'REFUSED to turn updates on' -and $taskAfter27 -eq $taskBefore27) { Pass "10 -SetMode Check from a user-writable folder: exit 4, refused, tasks unchanged ($taskAfter27)" }
+    else { Fail "10 -SetMode Check from a user-writable folder: exit $exit27, tasks $taskBefore27 -> $taskAfter27`n$out27" }
+    $out27 = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File $s27 -SetMode Install 2>&1 }) -join "`n"
+    if ($LASTEXITCODE -ne 0 -and $out27 -match '-Yes') { Pass '10 -SetMode Install without -Yes refuses and names -Yes' } else { Fail "10 -SetMode Install without -Yes: exit $LASTEXITCODE`n$out27" }
+    $out27 = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File $s27 -Run 2>&1 }) -join "`n"
+    $made27 = @(Get-ChildItem (Join-Path $run27 'scripts') -File | Where-Object { $_.Name -notin '10-auto-update.ps1', '07-update-check.ps1', '09-game-mode.defaults.json' })
+    if ($LASTEXITCODE -eq 0 -and $out27 -match 'updates are off' -and $made27.Count -eq 0) { Pass '10 -Run while Off: nothing checked, no file written' } else { Fail "10 -Run while Off: exit $LASTEXITCODE, wrote [$($made27.Name -join ', ')]`n$out27" }
+    # a saved Check mode with a game running must skip, and say so
+    Set-Content -LiteralPath (Join-Path $run27 'scripts\10-update-mode.json') -Value '{ "mode": "Check" }' -Encoding ascii
+    $psi27 = New-Object System.Diagnostics.ProcessStartInfo
+    $psi27.FileName = Join-Path $env:SystemRoot 'System32\ping.exe'
+    $psi27.Arguments = '-n 30 127.0.0.1'
+    $psi27.CreateNoWindow = $true
+    $psi27.UseShellExecute = $false
+    $hold27 = [System.Diagnostics.Process]::Start($psi27)
+    try {
+        Set-Content -LiteralPath (Join-Path $run27 'scripts\09-game-mode.json') -Value '{ "games": ["ping.exe"] }' -Encoding ascii
+        $out27 = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File $s27 -Run -DryRun 2>&1 }) -join "`n"
+        if ($LASTEXITCODE -eq 0 -and $out27 -match 'mode Check -> SkipGame' -and $out27 -match 'A game is running') { Pass '10 -Run in Check mode with a listed game running: skipped, said so' } else { Fail "10 -Run with a game running: exit $LASTEXITCODE`n$out27" }
+    } finally { try { $hold27.Kill() } catch { } }
+} finally { Remove-Item -Recurse -Force $run27 -ErrorAction SilentlyContinue }
+
+# --- stage 28: telemetry-tune plans only what Microsoft's docs support, and refuses a policy it did not set ----
+$tt28 = Join-Path $repo 'privacy\telemetry-tune.ps1'
+$errors = $null
+[void][System.Management.Automation.Language.Parser]::ParseFile($tt28, [ref]$null, [ref]$errors)
+if ($errors.Count) { Fail "telemetry-tune.ps1 does not parse: $($errors[0].Message)" }
+. $tt28
+if (-not (Get-Command Get-TelemetryPlan -ErrorAction SilentlyContinue)) { Fail 'telemetry-tune.ps1 has no Get-TelemetryPlan - stage 28 checked nothing' }
+else {
+    $edCases28 = @(@('Professional', 1), @('Core', 1), @('CoreSingleLanguage', 1), @('Enterprise', 0), @('Education', 0), @('ServerStandard', 0))
+    foreach ($e28 in $edCases28) {
+        $g28 = Get-TelemetryTarget $e28[0]
+        if ($g28 -eq $e28[1]) { Pass "Get-TelemetryTarget($($e28[0])) -> $g28" } else { Fail "Get-TelemetryTarget($($e28[0])) said $g28, expected $($e28[1])" }
+    }
+    function Get-Act28($plan, $id) { ($plan | Where-Object { $_.Id -eq $id }).Action }
+    $blank28 = @{ 'telemetry-policy' = $null; 'activity-feed' = $null; 'advertising-id' = $null; 'tailored' = $null; 'svc-diagtrack' = 'Automatic'; 'svc-dmwappush' = 'Manual' }
+    $p28 = @(Get-TelemetryPlan -Current $blank28 -EditionId 'Professional')
+    if ($p28.Count -eq 4 -and (@($p28 | Where-Object { $_.Action -eq 'Set' }).Count -eq 4) -and ($p28 | Where-Object { $_.Id -eq 'telemetry-policy' }).Target -eq 1) { Pass 'a default Pro PC: four settings to set, diagnostic policy target 1 (Required), no service rows' }
+    else { Fail "default Pro plan wrong: $(($p28 | ForEach-Object { "$($_.Id)=$($_.Action)/$($_.Target)" }) -join ' ')" }
+    $p28 = @(Get-TelemetryPlan -Current $blank28 -EditionId 'Enterprise')
+    if (($p28 | Where-Object { $_.Id -eq 'telemetry-policy' }).Target -eq 0) { Pass 'Enterprise gets diagnostic policy target 0' } else { Fail 'Enterprise did not get target 0' }
+    $cur28 = $blank28.Clone(); $cur28['telemetry-policy'] = 0
+    if ((Get-Act28 (Get-TelemetryPlan -Current $cur28 -EditionId 'Professional') 'telemetry-policy') -eq 'AtTarget') { Pass 'a policy already stricter than the target (0 on Pro) is left alone' } else { Fail 'a stricter policy was not left alone' }
+    $cur28['telemetry-policy'] = 3
+    if ((Get-Act28 (Get-TelemetryPlan -Current $cur28 -EditionId 'Professional') 'telemetry-policy') -eq 'Refuse') { Pass 'a policy somebody else set to 3 is refused, not overwritten' } else { Fail 'a foreign policy value was not refused' }
+    $cur28 = $blank28.Clone(); $cur28['advertising-id'] = 1
+    if ((Get-Act28 (Get-TelemetryPlan -Current $cur28 -EditionId 'Professional') 'advertising-id') -eq 'Set') { Pass 'advertising ID on -> Set' } else { Fail 'advertising ID on was not planned' }
+    $cur28['advertising-id'] = 0
+    if ((Get-Act28 (Get-TelemetryPlan -Current $cur28 -EditionId 'Professional') 'advertising-id') -eq 'AtTarget') { Pass 'advertising ID already off -> AtTarget' } else { Fail 'advertising ID off was not AtTarget' }
+    $s28 = @(Get-TelemetryPlan -Current $blank28 -EditionId 'Professional' -ServicesOnly $true)
+    if ($s28.Count -eq 2 -and (@($s28 | Where-Object { $_.Action -eq 'Set' }).Count -eq 2)) { Pass '-ServicesOnly plans only the two services' } else { Fail "-ServicesOnly plan wrong: $(($s28 | ForEach-Object { "$($_.Id)=$($_.Action)" }) -join ' ')" }
+    $cur28 = $blank28.Clone(); $cur28['svc-diagtrack'] = 'Disabled'; $cur28['svc-dmwappush'] = $null
+    $s28 = @(Get-TelemetryPlan -Current $cur28 -EditionId 'Professional' -ServicesOnly $true)
+    if ((Get-Act28 $s28 'svc-diagtrack') -eq 'AtTarget' -and (Get-Act28 $s28 'svc-dmwappush') -eq 'Skip') { Pass 'a disabled service is AtTarget and a missing service is skipped' } else { Fail 'service AtTarget/Skip wrong' }
+}
+$ttSrc28 = Get-Content $tt28 -Raw
+if ($ttSrc28 -match '(?s)ConvertTo-Json.*Set-ItemProperty -Path \$r\.Path') { Pass 'telemetry-tune writes its state file before the first registry write' } else { Fail 'telemetry-tune does not record state before writing' }
+$tp28 = Join-Path $env:TEMP ('wt-telem-' + [Guid]::NewGuid())
+try {
+    New-Item -ItemType Directory -Path $tp28 | Out-Null
+    Copy-Item $tt28 $tp28
+    $out28 = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $tp28 'telemetry-tune.ps1') -DryRun 2>&1 }) -join "`n"
+    $made28 = @(Get-ChildItem $tp28 -File | Where-Object { $_.Name -ne 'telemetry-tune.ps1' })
+    if ($LASTEXITCODE -in 0, 1 -and $out28 -match 'Windows edition' -and $made28.Count -eq 0) { Pass "telemetry-tune -DryRun ran unelevated (exit $LASTEXITCODE) and wrote no file" } else { Fail "telemetry-tune -DryRun: exit $LASTEXITCODE, wrote [$($made28.Name -join ', ')]`n$out28" }
+    if (-not $elevated) {
+        $out28 = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $tp28 'telemetry-tune.ps1') 2>&1 }) -join "`n"
+        $made28 = @(Get-ChildItem $tp28 -File | Where-Object { $_.Name -ne 'telemetry-tune.ps1' })
+        if ($LASTEXITCODE -ne 0 -and $out28 -match 'elevated PowerShell' -and $made28.Count -eq 0) { Pass 'telemetry-tune without admin refuses before it writes anything' } else { Fail "telemetry-tune without admin: exit $LASTEXITCODE, wrote [$($made28.Name -join ', ')]`n$out28" }
+    } else { Pass 'stage 28 unelevated refusal skipped: this gate is ELEVATED' }
+} finally { Remove-Item -Recurse -Force $tp28 -ErrorAction SilentlyContinue }
+
+# --- stage 29: the Recommended view only recommends what the audit found, and pre-ticks only the safe ones ----
+$rec29 = Join-Path $repo 'scripts\11-recommended.ps1'
+$errors = $null
+[void][System.Management.Automation.Language.Parser]::ParseFile($rec29, [ref]$null, [ref]$errors)
+if ($errors.Count) { Fail "11-recommended.ps1 does not parse: $($errors[0].Message)" }
+. $rec29
+if (-not (Get-Command Get-Recommendations -ErrorAction SilentlyContinue)) { Fail '11-recommended.ps1 has no Get-Recommendations - stage 29 checked nothing' }
+else {
+    function Get-Ids29($lines) { $r = Get-Recommendations $lines; if ($null -eq $r) { '<null>' } else { (@($r) | ForEach-Object { $_.Id }) -join ',' } }
+    $allOk29 = @('  ok         Language list hidden = 1', '  ok         Advertising ID = 0')
+    if ((Get-Ids29 $allOk29) -eq '') { Pass 'an audit with nothing wrong recommends nothing (empty, not null)' } else { Fail "an all-ok audit recommended: $(Get-Ids29 $allOk29)" }
+    if ((Get-Ids29 @('garbage', '')) -eq '<null>') { Pass 'an audit that read nothing returns null, never an empty all-clear' } else { Fail 'an unreadable audit did not return null' }
+    if ((Get-Ids29 @('  DRIFT      Advertising ID = 1, expected 0')) -eq 'telemetry-ads') { Pass 'drifted advertising ID -> telemetry-ads' } else { Fail 'drifted advertising ID did not give telemetry-ads' }
+    if ((Get-Ids29 @('  UNREADABLE Telemetry policy - expected 0, value absent')) -eq 'telemetry-ads') { Pass 'an absent telemetry policy (Windows default) -> telemetry-ads' } else { Fail 'an absent telemetry policy was not recommended' }
+    if ((Get-Ids29 @('  UNREADABLE Edge 3p cookies blocked - expected 1, value absent')) -eq '') { Pass 'an unreadable Edge value (Edge not installed) is NOT recommended' } else { Fail 'an unreadable Edge value was recommended' }
+    $r29 = Get-Recommendations @('  DRIFT      DiagTrack start type = Automatic, expected Disabled', '  DRIFT      Language list hidden = 0, expected 1', '  DRIFT      Chrome 3p cookies blocked = 0, expected 1', '  DRIFT      DoH auto-upgrade 1.1.1.1 = False, expected True')
+    $r29 = @($r29)
+    $pre29 = ($r29 | Where-Object { $_.PreTicked } | ForEach-Object { $_.Id }) -join ','
+    if ($r29.Count -eq 4 -and $pre29 -eq 'language-list') { Pass 'of four mixed findings only the safe one (language list) is pre-ticked' } else { Fail "pre-ticked set wrong: [$pre29] of $($r29.Count)" }
+    foreach ($row29 in $CATALOGUE) {
+        $blank29 = @('What', 'Risk', 'Undo', 'Source', 'Title') | Where-Object { [string]::IsNullOrWhiteSpace($row29[$_]) }
+        if ($blank29) { Fail "catalogue row $($row29.Id) has no $($blank29 -join ', ')" }
+        elseif ($row29.Safe -and $row29.Source -match 'NOT FOUND') { Fail "catalogue row $($row29.Id) is pre-ticked but its source says NOT FOUND" }
+        else { Pass "catalogue row $($row29.Id): what, risk, undo and source stated$(if ($row29.Safe) { ' (safe, pre-ticked)' } else { ' (not pre-ticked)' })" }
+    }
+}
+$out29 = (& { $ErrorActionPreference = 'Continue'; & $ps -NoProfile -ExecutionPolicy Bypass -File $rec29 -Json 2>&1 }) -join "`n"
+$json29 = $null; try { $json29 = $out29 | ConvertFrom-Json } catch { }
+if ($LASTEXITCODE -eq 0 -and $null -ne $json29 -or ($LASTEXITCODE -eq 0 -and $out29.Trim() -eq '[]')) { Pass '11 -Json against this PC returns parseable JSON' } else { Fail "11 -Json: exit $LASTEXITCODE`n$out29" }
+# the click-install window ticks rows by menu key, and every key it can recommend has a row there and a menu row
+$guiAst29 = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $repo 'windows-tune-gui.ps1'), [ref]$null, [ref]$null)
+$rowsFn29 = $guiAst29.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-RecommendedRows' }, $true)
+if (-not $rowsFn29) { Fail 'windows-tune-gui.ps1 has no Get-RecommendedRows - stage 29 checked nothing' }
+else {
+    . ([scriptblock]::Create($rowsFn29.Extent.Text))
+    $defs29 = @(@{ Args = '-Choice 1 -AcceptRisk -NoElevate' }, @{ Args = '-Choice T' }, @{ Args = '-Choice L' }, @{ Args = '-Choice Y' })
+    $recs29 = @([pscustomobject]@{ Key = 'T'; PreTicked = $true }, [pscustomobject]@{ Key = 'Y'; PreTicked = $false }, [pscustomobject]@{ Key = 'Q'; PreTicked = $true })
+    $got29 = (Get-RecommendedRows -Recommendations $recs29 -Defs $defs29) -join ','
+    if ($got29 -eq '1') { Pass 'Get-RecommendedRows ticks only the pre-ticked row that exists (row 1), not the unsafe Y nor the unknown key' } else { Fail "Get-RecommendedRows gave [$got29], expected 1" }
+    $gotAll29 = (Get-RecommendedRows -Recommendations $recs29 -Defs $defs29 -All) -join ','
+    if ($gotAll29 -eq '1,3') { Pass 'Get-RecommendedRows -All ticks T and Y (the person chose them)' } else { Fail "Get-RecommendedRows -All gave [$gotAll29], expected 1,3" }
+    $guiText29 = Get-Content (Join-Path $repo 'windows-tune-gui.ps1') -Raw
+    $menuText29 = Get-Content (Join-Path $repo 'windows-tune.ps1') -Raw
+    foreach ($row29 in $CATALOGUE) {
+        $k29 = $row29.Key
+        if ($guiText29 -match "Args = '-Choice $k29'" -and $menuText29 -match "(?m)^\s*'$k29' = @\{ name = '[^']+\.ps1'") { Pass "recommended change $($row29.Id) (key $k29) has a menu row and a click-install row" } else { Fail "recommended change $($row29.Id) (key $k29) is missing from the menu or the click-install window" }
+    }
+    $ro29 = [regex]::Match($guiText29, '\[int\[\]\]\$ReadOnly = @\(([0-9, ]+)\)').Groups[1].Value -split ',' | ForEach-Object { [int]$_.Trim() }
+    $labelsRO29 = @(); $i29 = 0
+    foreach ($m29 in [regex]::Matches($guiText29, "Label = '([^']+)';\s+Args = '-Choice ([0-9A-Z])")) {
+        $i29++
+        $line29 = ($menuText29 -split "`n") | Where-Object { $_ -match "^\s*'$($m29.Groups[2].Value)' = " } | Out-String
+        $isRO29 = ($line29 -match "changes = ''")
+        if ($isRO29 -and $ro29 -notcontains $i29) { Fail "GUI row $i29 (menu $($m29.Groups[2].Value)) is read-only in the menu but not in Get-OptionPlan's ReadOnly list" }
+        if (-not $isRO29 -and $ro29 -contains $i29) { Fail "GUI row $i29 (menu $($m29.Groups[2].Value)) changes the machine but Get-OptionPlan treats it as read-only" }
+    }
+    Pass "Get-OptionPlan's ReadOnly rows ($($ro29 -join ',')) were compared with every menu row"
+}
 
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green

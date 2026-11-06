@@ -5,6 +5,17 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-06 - opt-in updates, privacy rows, Recommended view (ask 88adaf92). Built for Sam. NOT released.
+
+- New: `scripts/10-auto-update.ps1` (menu U status, V choose Off / Check / Install; default Off, no task on a fresh install), `scripts/11-recommended.ps1` (menu S, read-only), `privacy/telemetry-tune.ps1` (menu T, Y). Privacy scripts are menu rows P, T, Y, L, B, D and click-install rows. Click-install window: 19 rows plus a Recommended... button (ticks rows only; Install selected still confirms). VERSION v1.2.0. install.ps1 still pins v1.1.0.
+- Install mode: GitHub digest check, zip entry check, previous copy kept in `<install folder>.previous`, then `install.ps1 -FromZip -Sha256`. Skips while a game runs (checked again after the download). Refused outside Program Files. Revert: `10-update-revert.ps1` and `10-update-task-revert.ps1`, both listed by menu R.
+- Trust limit: the digest comes from the same release as the zip, so it does not prove the publisher. Install mode needs a signature against a key shipped in the installed copy to close that. Not built.
+- `privacy-audit.ps1` now accepts 0 or 1 for the telemetry policy on Home and Pro: Microsoft says 0 is honoured only on Enterprise, Education and Server.
+- Preflight: 273 ok, exit 0 (was 170). New stages 27 (updates), 28 (telemetry plan), 29 (Recommended and the window). Proven red five ways and restored byte-exactly: SkipGame branch removed, zip `..` check removed, mode default changed, foreign-policy refusal removed, unsafe row marked Safe.
+- Exercised on this PC unelevated and in -DryRun only. NOT exercised: a real elevated `-SetMode`, a real scheduled task, a real Install end to end, a real `telemetry-tune` write. Needs an elevated run from a Program Files copy, which needs Tre's typed yes in this tab.
+- Not found: the "Corvi Tech" YouTube video. No note, decision, reel digest or transcript names it, and a public search returns only a lighting company. The telemetry items cite Microsoft Learn instead. Compare with the video once Tre sends the link.
+- Release notes draft for v1.2.0: opt-in update choice (Off / Check / Install), privacy rows in menu and window, telemetry-tune, Recommended view. A new public release needs Tre's typed yes here; then `install.ps1` is re-pinned to the new tag and zip hash in one commit.
+
 ## 2026-10-26 - game mode, v1.1.0 (decision 70e0459f). Built for Sam.
 
 - New `scripts/09-game-mode.ps1` + `09-game-mode.defaults.json`. Menu 8 (preview, read-only), 9 (`-Watch`), G (`-InstallWatcher`, opt-in scheduled task). Same three rows in the click-install window (now 10 rows). VERSION v1.1.0.
