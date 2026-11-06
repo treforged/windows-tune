@@ -5,6 +5,11 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-06 (later) - key created, elevated test PENDING a UAC press
+
+- Tre typed the yes in this tab (3c8ac43e). Key made on this PC: fingerprint 46698faa...8383, private key DPAPI in ~/.windows-tune-signing, public key committed d0c156f (not pushed yet). Release zip built with `git archive` at d0c156f and signed: `Documents/Desktop-Stash/wt-v1.2.0-release/` (zip sha256 9c8c8a06...55db1).
+- The elevated test launched but the UAC prompt was cancelled (nobody at the PC). NOT RUN. To resume: `Start-Process powershell.exe -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','<repo>	ests\elevated-install-test.ps1','-Zip','<zip>','-Sig','<zip>.sig','-Out','<result.txt>'`, Tre presses Yes, read the result file. Cut v1.2.0 ONLY if it ends `DONE failures=0`. If the repo changes, rebuild and re-sign the zip first.
+
 ## 2026-11-06 - opt-in updates, privacy rows, Recommended view (ask 88adaf92). Built for Sam. NOT released.
 
 - New: `scripts/10-auto-update.ps1` (menu U status, V choose Off / Check / Install; default Off, no task on a fresh install), `scripts/11-recommended.ps1` (menu S, read-only), `privacy/telemetry-tune.ps1` (menu T, Y). Privacy scripts are menu rows P, T, Y, L, B, D and click-install rows. Click-install window: 19 rows plus a Recommended... button (ticks rows only; Install selected still confirms). VERSION v1.2.0. install.ps1 still pins v1.1.0.
@@ -13,7 +18,7 @@ Earlier resume briefs said to start on Fable; they are out of date.
 - `privacy-audit.ps1` now accepts 0 or 1 for the telemetry policy on Home and Pro: Microsoft says 0 is honoured only on Enterprise, Education and Server.
 - Preflight: 273 ok, exit 0 (was 170). New stages 27 (updates), 28 (telemetry plan), 29 (Recommended and the window). Proven red five ways and restored byte-exactly: SkipGame branch removed, zip `..` check removed, mode default changed, foreign-policy refusal removed, unsafe row marked Safe.
 - Exercised on this PC unelevated and in -DryRun only. NOT exercised: a real elevated `-SetMode`, a real scheduled task, a real Install end to end, a real `telemetry-tune` write. Needs an elevated run from a Program Files copy, which needs Tre's typed yes in this tab.
-- Not found: the "Corvi Tech" YouTube video. No note, decision, reel digest or transcript names it, and a public search returns only a lighting company. The telemetry items cite Microsoft Learn instead. Compare with the video once Tre sends the link.
+- Corvi Tech video = Khorvie Tech's guide (Tre 11-06). Tre says it no longer exists; public search finds only third-party tests of 'khorvie 2025 guide' and 'khorvie OS' tweak packs, not the guide. Nothing to compare, nothing imported. Our telemetry items stay doc-backed (Microsoft Learn).
 - Release notes draft for v1.2.0: opt-in update choice (Off / Check / Install), privacy rows in menu and window, telemetry-tune, Recommended view. A new public release needs Tre's typed yes here; then `install.ps1` is re-pinned to the new tag and zip hash in one commit.
 
 ## 2026-10-26 - game mode, v1.1.0 (decision 70e0459f). Built for Sam.
