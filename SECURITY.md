@@ -80,3 +80,9 @@ not in scope.
   is checked with the key you already trust.
 - The first install is trusted by the SHA256 pinned in `install.ps1` on `main` and the maintainer's GitHub account,
   not by the signature.
+
+### If the signing key ever changes
+
+- **What a user sees:** Install mode keeps its old key, so a release signed by a new key fails the check with "the signature does not match this zip and this key" and installs nothing. Check mode still shows the notice that a newer release exists. Nothing breaks and nothing is installed by surprise.
+- **How a new key would be announced:** in the release notes and the README, with the new fingerprint, and on the main branch where `install.ps1` pins the release. A user then does one fresh manual install with `install.ps1` (hash-pinned) and compares the fingerprint that menu U prints with the announced one. A fingerprint that appears only inside an update, or only in a message, is not to be trusted.
+- The private key is never exported or backed up without the maintainer's own typed approval. The cost of that choice is the lost-key case above.
