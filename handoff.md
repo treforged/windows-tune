@@ -7,8 +7,10 @@ Earlier resume briefs said to start on Fable; they are out of date.
 
 ## FIRST UP next session (OVERDRIVE 11-06 to Mon 11-09 17:00 ET)
 
-- ONE thing: when Sam (tre-forged-f3 or its successor) says Tre is at the PC, relaunch the elevated test (command in the next section), read the result file, and cut v1.2.0 only on `DONE failures=0`. Cut = push main (3 local commits ahead: d0c156f, handoff, SECURITY), tag v1.2.0 at d0c156f, `gh release create` with the zip + .sig from Documents/Desktop-Stash/wt-v1.2.0-release/, verify the asset digest equals the local sha256, re-pin install.ps1 (tag + hash) in one commit, push, verify by contents.
-- Nothing else is open. Ask e37439fa waits on Tre. This session read Sonnet 5.5 and handed off so the successor reads Opus 5.5.
+- ONE thing: when Sam (tre-forged-f3 or its successor) says Tre is at the PC, relaunch the elevated test (command in the next section), read the result file, and cut v1.2.0 only on `DONE failures=0`. Cut = tag v1.2.0 at d0c156f (main is already pushed), `gh release create` with the zip + .sig from Documents/Desktop-Stash/wt-v1.2.0-release/, verify the asset digest equals the local sha256, re-pin install.ps1 (tag + hash) in one commit, push, verify by contents.
+- Nothing else is open. Ask e37439fa waits on Tre. This session reads Opus 5.5.
+- Checked 11-06 with no elevation: preflight 305 ok, exit 0. `git archive` of d0c156f rebuilt the same zip sha256 (9c8c8a06...55db1). `Test-ReleaseSignature` accepts the zip and refuses a one-bit tampered copy. The `.sig` is base64 text, so a check that reads it as raw bytes returns False on a good zip.
+- Not exercised until the elevated test runs: a real `-SetMode`, a real scheduled task, a real Install end to end, a real `telemetry-tune` write.
 
 ## 2026-11-06 (later) - key created, elevated test PENDING a UAC press
 
