@@ -7,6 +7,7 @@ Earlier resume briefs said to start on Fable; they are out of date.
 
 ## FIRST UP next session (OVERDRIVE 11-06 to Mon 11-09 17:00 ET)
 
+- 11-07: Sam parked this desk until 19:00. One UAC prompt now runs three jobs: this test, a read-only DISM CheckHealth, and the Sandbox enable for ask 4ec48798. The wrapper is the private `claudecontext/tools/Gus-Elevated-Batch.ps1` (no arguments). It was parse-checked and refused cleanly when run unelevated. Read its log and the line `RESULT: N of 3 done`. Ask e5528f6e (game ping) waits on Tre's next game and a router login.
 - ONE thing: when Sam (tre-forged-f3 or its successor) says Tre is at the PC, relaunch the elevated test (command in the next section), read the result file, and cut v1.2.0 only on `DONE failures=0`. Cut = tag v1.2.0 at d0c156f (main is already pushed), `gh release create` with the zip + .sig from Documents/Desktop-Stash/wt-v1.2.0-release/, verify the asset digest equals the local sha256, re-pin install.ps1 (tag + hash) in one commit, push, verify by contents.
 - Nothing else is open. Ask e37439fa waits on Tre. This session reads Opus 5.5.
 - Checked 11-06 with no elevation: preflight 305 ok, exit 0. `git archive` of d0c156f rebuilt the same zip sha256 (9c8c8a06...55db1). `Test-ReleaseSignature` accepts the zip and refuses a one-bit tampered copy. The `.sig` is base64 text, so a check that reads it as raw bytes returns False on a good zip.
