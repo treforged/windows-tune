@@ -5,6 +5,11 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## FIRST UP next session (OVERDRIVE 11-06 to Mon 11-09 17:00 ET)
+
+- ONE thing: when Sam (tre-forged-f3 or its successor) says Tre is at the PC, relaunch the elevated test (command in the next section), read the result file, and cut v1.2.0 only on `DONE failures=0`. Cut = push main (3 local commits ahead: d0c156f, handoff, SECURITY), tag v1.2.0 at d0c156f, `gh release create` with the zip + .sig from Documents/Desktop-Stash/wt-v1.2.0-release/, verify the asset digest equals the local sha256, re-pin install.ps1 (tag + hash) in one commit, push, verify by contents.
+- Nothing else is open. Ask e37439fa waits on Tre. This session read Sonnet 5.5 and handed off so the successor reads Opus 5.5.
+
 ## 2026-11-06 (later) - key created, elevated test PENDING a UAC press
 
 - Tre typed the yes in this tab (3c8ac43e). Key made on this PC: fingerprint 46698faa...8383, private key DPAPI in ~/.windows-tune-signing, public key committed d0c156f (not pushed yet). Release zip built with `git archive` at d0c156f and signed: `Documents/Desktop-Stash/wt-v1.2.0-release/` (zip sha256 9c8c8a06...55db1).
