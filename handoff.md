@@ -5,6 +5,10 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-19 14:10 - v1.3.0 PREPARED, not published
+
+- origin/main f042c9c: VERSION v1.3.0 with its CHANGELOG section. Zip + .sig in `Documents/Desktop-Stash/wt-v1.3.0-release/` (sha256 7252e7e6...ccd10, rebuilds byte-identical). Signature VERIFIED, a tampered copy is refused, and an install from the zip prints its notes. Publish steps: `RELEASE-STEPS.txt` in that folder. Waits on Tre's "yes v1.3.0".
+
 ## 2026-11-19 14:05 - BSOD lead + 7-day crash watch
 
 - Measured with no restart: four DDR5 sticks at EXPO 5600 (rated 4800), NVIDIA driver from 2026-01-19, BIOS 1.D2 from 2024-11. Recommendation (Sam): EXPO OFF for a 7-day watch (ask b4ddc894, Tre's hands).
