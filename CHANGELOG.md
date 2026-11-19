@@ -3,7 +3,7 @@
 The installer prints the section for the version it just installed.
 Each release adds its section at the top, as `## vX.Y.Z - YYYY-MM-DD`.
 
-## Unreleased
+## v1.3.0 - 2026-11-19
 
 - New menu option C: tidy the right-click menu. It adds "Open in Admin Terminal" to folders and drives, and hides the Clipchamp, OneDrive, Copilot and Defender-scan items. Your user only, no admin needed, with an undo. It reads each app's own menu IDs, so it works across app versions.
 - The privacy audit now shows Defender's file-upload settings in plain words and the trade-off. It is information only and changes nothing.
