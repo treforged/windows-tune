@@ -5,6 +5,12 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-19 14:05 - BSOD lead + 7-day crash watch
+
+- Measured with no restart: four DDR5 sticks at EXPO 5600 (rated 4800), NVIDIA driver from 2026-01-19, BIOS 1.D2 from 2024-11. Recommendation (Sam): EXPO OFF for a 7-day watch (ask b4ddc894, Tre's hands).
+- Watcher: user task `TRE-Forged-GusCrashWatch` runs `claudecontext/tools/Gus-Crash-Watch.ps1` daily at 09:13, 11-20..11-26 (Ready, read back). It logs bugchecks, unexpected shutdowns, WHEA and RAM speed to `Documents/Desktop-Stash/crash-watch.log`. It files a Sam row on a NEW bugcheck, on an unreadable log, and a summary on 11-26. All paths were tested with a stub ask store. A failed alert logs `ALERT NOT FILED` and exits 1. LESSON: without `[CmdletBinding()]`, PowerShell -File silently ignores unknown flags, and one test run wrote to the real log and filed 2 false rows (dropped 6a9d8983 and cc2552b5).
+- Taskbar: ActiveFix is staged. Its UAC went unanswered at 13:0x. Re-raise only when Tre says "go taskbar".
+
 ## 2026-11-19 12:30 - taskbar dock RAN; one gap left (ask f55b451e)
 
 - Applied: 12-context-menu (Tre's profile), Gus-Taskbar-Dock 5 of 5 (12:25), and Gus-Taskbar-NoHighlight 3 of 3 (12:27). Measured: the background is clear, icons are 52, running dots show, Clipchamp is hidden, the admin item is listed, the two mods are off, and the VALORANT exclude is set.
