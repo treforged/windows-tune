@@ -8,7 +8,7 @@ Earlier resume briefs said to start on Fable; they are out of date.
 ## FIRST UP (2026-11-19 01:42, latest)
 
 - The batch ran at 01:24 with RESULT 4 of 5. The elevated install test passed with DONE failures=0 (14 PASS). The store went from Repairable to Healthy after RestoreHealth, and sfc came back Clean. The Sandbox enable still failed with "store corrupted" because a restart is pending.
-- Waiting on Tre (ask cd555d79): a restart, then his typed `yes v1.2.0` in this tab. After the yes, cut v1.2.0 by the steps in the OVERDRIVE section below. After the restart, retry the Sandbox enable (ask 4ec48798 is blocked until then).
+- v1.2.0 is PUBLISHED (Tre typed the yes on 11-19). Tag -> d0c156f. The asset digest and a fresh download both equal 9c8c8a06...55db1. install.ps1 on main is pinned to v1.2.0. Still open: Tre restarts after 03:30, then retry the Sandbox enable (ask 4ec48798). Ask e5528f6e (game ping) waits on a game session.
 
 ## FIRST UP (2026-11-18)
 
