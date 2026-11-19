@@ -5,7 +5,12 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
-## FIRST UP (2026-11-18, latest)
+## FIRST UP (2026-11-19 01:42, latest)
+
+- The batch ran at 01:24 with RESULT 4 of 5. The elevated install test passed with DONE failures=0 (14 PASS). The store went from Repairable to Healthy after RestoreHealth, and sfc came back Clean. The Sandbox enable still failed with "store corrupted" because a restart is pending.
+- Waiting on Tre (ask cd555d79): a restart, then his typed `yes v1.2.0` in this tab. After the yes, cut v1.2.0 by the steps in the OVERDRIVE section below. After the restart, retry the Sandbox enable (ask 4ec48798 is blocked until then).
+
+## FIRST UP (2026-11-18)
 
 - The private elevated batch now has 5 jobs: the install test, CheckHealth, RestoreHealth with a CheckHealth read-back, sfc /scannow, and the Sandbox enable. It never restarts the PC and it logs `RESTART NEEDED`. It skips if a game runs. It also fixes an old verdict bug: "not repairable" was read as Repairable.
 - Tre games tonight, so a one-time elevated task runs the batch at 02:15 on 11-19. A user task at 03:20 reads the log and files an ask row for Sam. Next session: read that row and close ask f1ff34d3 with the findings. Cut v1.2.0 ONLY if job 1 says `DONE failures=0`. If a restart is needed, put it in Sam's list.
