@@ -5,6 +5,11 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## FIRST UP (2026-11-18, latest)
+
+- The private elevated batch now has 5 jobs: the install test, CheckHealth, RestoreHealth with a CheckHealth read-back, sfc /scannow, and the Sandbox enable. It never restarts the PC and it logs `RESTART NEEDED`. It skips if a game runs. It also fixes an old verdict bug: "not repairable" was read as Repairable.
+- Tre games tonight, so a one-time elevated task runs the batch at 02:15 on 11-19. A user task at 03:20 reads the log and files an ask row for Sam. Next session: read that row and close ask f1ff34d3 with the findings. Cut v1.2.0 ONLY if job 1 says `DONE failures=0`. If a restart is needed, put it in Sam's list.
+
 ## FIRST UP next session (OVERDRIVE 11-06 to Mon 11-09 17:00 ET)
 
 - 11-07: Sam parked this desk until 19:00. One UAC prompt now runs three jobs: this test, a read-only DISM CheckHealth, and the Sandbox enable for ask 4ec48798. The wrapper is the private `claudecontext/tools/Gus-Elevated-Batch.ps1` (no arguments). It was parse-checked and refused cleanly when run unelevated. Read its log and the line `RESULT: N of 3 done`. Ask e5528f6e (game ping) waits on Tre's next game and a router login.
