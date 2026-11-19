@@ -63,6 +63,39 @@ $ReleaseTag    = 'v1.2.0'
 $ReleaseSha256 = '9c8c8a06ae2c2dc52dc8c29aa2f91f1025638243a8c842fc0a219d719c055db1'
 $ReleaseUrl    = "https://github.com/treforged/windows-tune/releases/download/$ReleaseTag/windows-tune-$ReleaseTag.zip"
 
+# Returns the CHANGELOG.md section for one version ('## v1.2.0 - date' up to the next '## '), or $null.
+function Get-PatchNotes([string]$ChangelogText, [string]$Version) {
+    if (-not $ChangelogText -or -not $Version) { return $null }
+    $lines = $ChangelogText -split "`r?`n"
+    $out = New-Object System.Collections.Generic.List[string]
+    $in = $false
+    foreach ($ln in $lines) {
+        if ($ln -match '^## ') {
+            if ($in) { break }
+            $in = ($ln -match ('^## ' + [regex]::Escape($Version) + '(\s|$)'))
+            continue
+        }
+        if ($in) { $out.Add($ln) }
+    }
+    $text = ($out -join "`n").Trim()
+    if ($text) { return $text } else { return $null }
+}
+
+# Prints the notes for the installed VERSION. A missing file or section is said out loud, never skipped.
+function Show-PatchNotes([string]$Folder) {
+    $vf = Join-Path $Folder 'VERSION'; $cf = Join-Path $Folder 'CHANGELOG.md'
+    $ver = if (Test-Path -LiteralPath $vf) { (Get-Content -LiteralPath $vf -Raw).Trim() } else { $null }
+    $notes = if (Test-Path -LiteralPath $cf) { Get-PatchNotes (Get-Content -LiteralPath $cf -Raw) $ver } else { $null }
+    if ($notes) {
+        Write-Host ''
+        Write-Host "What's new in $ver" -ForegroundColor Cyan
+        Write-Host $notes
+        Write-Host ''
+    } else {
+        Write-Host "No patch notes found for version '$ver' in CHANGELOG.md." -ForegroundColor Yellow
+    }
+}
+
 function Assert-ZipHash([string]$ZipPath, [string]$Expected) {
     if ($Expected -notmatch '^[0-9a-fA-F]{64}$') { throw "No valid SHA256 to check the zip against: [$Expected]. Refusing to install." }
     $actual = (Get-FileHash -Algorithm SHA256 -Path $ZipPath).Hash
@@ -128,6 +161,7 @@ try {
     Get-ChildItem -Path $Path -Recurse -File | Unblock-File
 
     Write-Host "Installed to: $Path" -ForegroundColor Green
+    Show-PatchNotes $Path
     Write-Host 'Read NOTICE.md before running anything.' -ForegroundColor Yellow
     Write-Host 'Double-click Run-WindowsTune.cmd, or run .\windows-tune.ps1 from an elevated PowerShell.' -ForegroundColor Cyan
 

@@ -132,7 +132,7 @@ $target = Join-Path $env:TEMP ('wt-target-' + [Guid]::NewGuid())
 try {
     $stage = Join-Path $zipDir 'windows-tune-main'
     New-Item -ItemType Directory -Path $stage | Out-Null
-    foreach ($n in 'install.ps1', 'windows-tune.ps1', 'Run-WindowsTune.cmd', 'NOTICE.md', 'README.md', 'LICENSE') { Copy-Item (Join-Path $repo $n) $stage }
+    foreach ($n in 'install.ps1', 'windows-tune.ps1', 'Run-WindowsTune.cmd', 'NOTICE.md', 'README.md', 'LICENSE', 'VERSION', 'CHANGELOG.md') { Copy-Item (Join-Path $repo $n) $stage }
     Copy-Item (Join-Path $repo 'scripts') (Join-Path $stage 'scripts') -Recurse -Filter '*.ps1'
     $zip = Join-Path $zipDir 'windows-tune.zip'
     Compress-Archive -Path $stage -DestinationPath $zip
@@ -159,6 +159,17 @@ try {
     $goodHash = (Get-FileHash -Algorithm SHA256 $zip).Hash
     $out = & $ps -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo 'install.ps1') -FromZip $zip -Path $target -Sha256 $goodHash
     if ($LASTEXITCODE -ne 0) { Fail "install.ps1 exit $LASTEXITCODE`n$out" } else { Pass 'install.ps1 -FromZip with the right SHA256 exit 0' }
+    # 7c. patch notes: the install prints the CHANGELOG section for the VERSION it installed (ask 218bcb9d)
+    $ver7 = (Get-Content (Join-Path $repo 'VERSION') -Raw).Trim()
+    $first7 = @((Get-Content (Join-Path $repo 'CHANGELOG.md')) | Select-String -Pattern ('^## ' + [regex]::Escape($ver7) + '(\s|$)') -Context 0,3 | ForEach-Object { $_.Context.PostContext } | Where-Object { $_ -match '^- ' })[0]
+    if (-not $first7) { Fail "CHANGELOG.md has no '## $ver7' section with a bullet - every release needs its patch notes" }
+    elseif (($out -join "`n") -match [regex]::Escape("What's new in $ver7") -and ($out -join "`n").Contains($first7)) { Pass "install printed the patch notes for $ver7" }
+    else { Fail "install did not print the patch notes for $ver7`n$out" }
+    $ast7 = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $repo 'install.ps1'), [ref]$null, [ref]$null)
+    $fn7 = $ast7.Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-PatchNotes' }, $true)
+    if ($fn7) { . ([scriptblock]::Create($fn7.Extent.Text)); $cl7 = "## v9.9.9 - x`n- nine`n## v9.9`n- short"
+        if ((Get-PatchNotes $cl7 'v9.9') -eq '- short' -and $null -eq (Get-PatchNotes $cl7 'v9.8') -and (Get-PatchNotes $cl7 'v9.9.9') -eq '- nine') { Pass 'Get-PatchNotes picks the exact version, not a prefix, and returns nothing for an unknown one' }
+        else { Fail 'Get-PatchNotes matched the wrong section' } } else { Fail 'install.ps1 has no Get-PatchNotes - stage 7c checked nothing' }
     foreach ($n in 'windows-tune.ps1', 'Run-WindowsTune.cmd', 'NOTICE.md', 'scripts\01-network-tune.ps1', 'scripts\06-remove-third-party-av.ps1') {
         if (Test-Path (Join-Path $target $n)) { Pass "installed $n" } else { Fail "missing after install: $n" }
     }

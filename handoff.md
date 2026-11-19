@@ -5,6 +5,12 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-19 - patch notes in the installer (ask 218bcb9d), history rewrite done (c6b3081b)
+
+- `CHANGELOG.md` ships in the zip. install.ps1 `Show-PatchNotes` prints the section for the installed VERSION, and says so out loud when the section is missing. RELEASE RULE: add `## vX.Y.Z - date` at the top BEFORE you tag. Preflight 7c fails without it. It ships from the NEXT release, because v1.2.0's zip is already published.
+- Preflight: 307 ok, exit 0. Proven red twice and restored byte-exact: the Show-PatchNotes call removed, and the exact-version match loosened to a prefix match.
+- Rewrite done: origin/main b9fd779, 0 Claude trailers, force-pushes off again (read back false). No Claude attribution on any commit from now on (Tre 11-19).
+
 ## FIRST UP (2026-11-19 01:42, latest)
 
 - REWRITE HALF DONE (ask c6b3081b, Tre typed the yes). The tags carry the clean history. main is still OLD, because branch protection blocks force-push. When Tre turns on force-pushes for main: `git fetch <Desktop-Stash>/windows-tune-REWRITTEN-20261119.bundle` and push its main (3415deb6? no: use the bundle's main) with --force. Turn force-pushes off again and read the protection back. Then check by contents that origin/main has 0 trailers and the same trees. After that, reset the local main to origin/main. Do NOT roll the tags back without his word. The old history is in `windows-tune-pre-rewrite-20261119.bundle`.
