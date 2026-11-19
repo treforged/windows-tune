@@ -5,6 +5,12 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-19 15:00 - v1.3.0 PUBLISHED, taskbar DONE
+
+- Tre typed "yes v1.3.0" and "go taskbar". v1.3.0 is live (tag -> f042c9c). The asset digest, the local sha256 and a fresh download all equal 7252e7e6...ccd10. install.ps1 is pinned on origin/main (0/0, checked by contents).
+- The taskbar is finished. ActiveFix ran 3 of 3 at 14:53. After the Windhawk reload (about 20 s; the first shot came mid-reload and looked wrong), the focused app shows only its running pill and no box. Asks f55b451e, 77a80a04 and 0709c3b4 are closed.
+- Open: 740587af + b4ddc894 (restart + EXPO off, Tre's hands), then the Sandbox retry (4ec48798). The crash watch reports to Sam daily from 11-20.
+
 ## 2026-11-19 14:10 - v1.3.0 PREPARED, not published
 
 - origin/main f042c9c: VERSION v1.3.0 with its CHANGELOG section. Zip + .sig in `Documents/Desktop-Stash/wt-v1.3.0-release/` (sha256 7252e7e6...ccd10, rebuilds byte-identical). Signature VERIFIED, a tampered copy is refused, and an install from the zip prints its notes. Publish steps: `RELEASE-STEPS.txt` in that folder. Waits on Tre's "yes v1.3.0".
