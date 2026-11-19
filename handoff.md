@@ -5,6 +5,12 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-19 (later) - taskbar dock + Windhawk study + 12-context-menu
+
+- WAITING on Sam's "Tre ready": `claudecontext/tools/Gus-Taskbar-Dock.ps1` (private, one UAC). It makes the taskbar clear with no highlight behind icons (the running dot stays), sets icons to 52, adds an engine Exclude for VALORANT/Riot/vgc, narrows dot-hide and explorer-details to explorer, turns OFF the two context-menu mods if 12 is applied, then restarts the Windhawk service. Test: `Gus-Taskbar-Dock.test.ps1` against an HKCU copy, 5 of 5, undo byte-exact. Sequence on "Tre ready": check for a game, run `scripts/12-context-menu.ps1` (no admin), raise the UAC, then take idle and hovered shots with `Gus-Taskbar-Shot.ps1` and a menu reading.
+- SHIPPED: `scripts/12-context-menu.ps1` (menu C). Proof: `tests/context-menu-live.ps1` (applies and undoes on the real profile, restores from its own snapshot on failure). The shell's menu reading flakes, so present = any of 5 readings and gone = all 5.
+- Study (ask 11371213): `claudecontext/plans/windhawk-replacement-study.md`. Keep the engine. The mods are MIT, and only the engine is GPL-3.
+
 ## 2026-11-19 - patch notes in the installer (ask 218bcb9d), history rewrite done (c6b3081b)
 
 - `CHANGELOG.md` ships in the zip. install.ps1 `Show-PatchNotes` prints the section for the installed VERSION, and says so out loud when the section is missing. RELEASE RULE: add `## vX.Y.Z - date` at the top BEFORE you tag. Preflight 7c fails without it. It ships from the NEXT release, because v1.2.0's zip is already published.
