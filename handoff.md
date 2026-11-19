@@ -7,6 +7,8 @@ Earlier resume briefs said to start on Fable; they are out of date.
 
 ## FIRST UP (2026-11-19 01:42, latest)
 
+- NEW 11-19 (Tre): (1) ask 218bcb9d - patch notes in the installer: CHANGELOG.md ships in the zip, install.ps1 prints the installed version's notes, and a preflight stage asserts them. (2) No more Claude co-author trailers or PR footers on any commit (machine-wide rule, ask d4568a9a with Sam). (3) The history rewrite that removes the existing trailers needs a force-push and waits on Tre's typed yes (ask c6b3081b).
+
 - The batch ran at 01:24 with RESULT 4 of 5. The elevated install test passed with DONE failures=0 (14 PASS). The store went from Repairable to Healthy after RestoreHealth, and sfc came back Clean. The Sandbox enable still failed with "store corrupted" because a restart is pending.
 - v1.2.0 is PUBLISHED (Tre typed the yes on 11-19). Tag -> d0c156f. The asset digest and a fresh download both equal 9c8c8a06...55db1. install.ps1 on main is pinned to v1.2.0. Still open: Tre restarts after 03:30, then retry the Sandbox enable (ask 4ec48798). Ask e5528f6e (game ping) waits on a game session.
 
