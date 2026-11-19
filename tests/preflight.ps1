@@ -1397,6 +1397,26 @@ if (Test-Path $shipped30) {
     if ($sk30 -notmatch '<(D|P|Q|DP|DQ|InverseQ)>' -and (Get-KeyFingerprint $sk30)) { Pass "scripts\update-pubkey.xml is a public-only RSA key (fingerprint $(Get-KeyFingerprint $sk30))" } else { Fail 'scripts\update-pubkey.xml is not a valid public-only key' }
 } else { Pass 'scripts\update-pubkey.xml is not in the repo yet: Install mode stays unavailable until the maintainer ships the public key' }
 
+# --- stage 32: Defender file-upload line in privacy-audit is information only (ask fcee8b7c) ---
+$pa32 = Join-Path $repo 'privacy\privacy-audit.ps1'
+$src32 = Get-Content $pa32 -Raw
+$fn32 = [System.Management.Automation.Language.Parser]::ParseFile($pa32, [ref]$null, [ref]$null).Find({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Format-DefenderSampleInfo' }, $true)
+if (-not $fn32) { Fail 'privacy-audit.ps1 has no Format-DefenderSampleInfo - stage 32 checked nothing' }
+else {
+    . ([scriptblock]::Create($fn32.Extent.Text))
+    $l32 = Format-DefenderSampleInfo 1 2
+    if ($l32 -match 'send safe samples automatically' -and $l32 -match 'advanced' -and $l32 -match 'weakens protection') { Pass 'the Defender line names both settings and the trade-off' } else { Fail "Defender line wrong: $l32" }
+    if ((Format-DefenderSampleInfo 2 0) -match 'never send.*cloud protection off') { Pass 'the Defender line maps 2/0 to never send / cloud protection off' } else { Fail 'Defender value map wrong for 2/0' }
+    $states32 = @($l32, (Format-DefenderSampleInfo $null $null)) | Where-Object { $_ -match '^\s+(ok|DRIFT|UNREADABLE)\s' }
+    if (-not $states32) { Pass 'the Defender line is never an ok, DRIFT or UNREADABLE row, so it never changes the audit result' } else { Fail "the Defender line is scored as an audit row: $states32" }
+    if ((Format-DefenderSampleInfo $null $null) -match 'could not be read') { Pass 'an unreadable Defender setting says so, never a value' } else { Fail 'unreadable Defender setting printed a value' }
+    if (Get-Command Get-Recommendations -ErrorAction SilentlyContinue) {
+        # @($null).Count is 1 in PowerShell 5.1, so count only real objects.
+        if (@(Get-Recommendations @($l32) | Where-Object { $_ }).Count -eq 0) { Pass 'the Defender line never becomes a recommendation' } else { Fail 'the Defender info line produced a recommendation' }
+    } else { Fail 'Get-Recommendations not loaded - cannot prove the Defender line stays information only' }
+}
+if ($src32 -notmatch 'Set-MpPreference\s+-') { Pass 'privacy-audit.ps1 never changes Defender (no Set-MpPreference call)' } else { Fail 'privacy-audit.ps1 calls Set-MpPreference - it must stay read-only' }
+
 # --- stage 31: 12-context-menu.ps1 (ask 77a80a04). Writes nothing here: dry run + static checks.
 #     The both-ways proof on a real profile is tests/context-menu-live.ps1 (run it when this script changes).
 $cm31 = Join-Path $repo 'scripts\12-context-menu.ps1'

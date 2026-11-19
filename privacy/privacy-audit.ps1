@@ -38,6 +38,19 @@ foreach ($c in $CHECKS) {
     if ($now -match "^($($c.Want))$") { Write-Host ("  ok         {0} = {1}" -f $c.What, $now) }
     else { $drift++; Write-Host ("  DRIFT      {0} = {1}, expected {2}" -f $c.What, $now, $c.Want) -ForegroundColor Yellow }
 }
+# Information only, never DRIFT and never a recommendation (Sam ruling 11-19, ask fcee8b7c): Defender can
+# upload files to Microsoft for analysis. Less upload means weaker protection against new malware, so this
+# audit shows the setting and the trade-off and leaves the choice to the person. Values: Microsoft Learn,
+# Set-MpPreference (SubmitSamplesConsent, MAPSReporting).
+function Format-DefenderSampleInfo($Consent, $Maps) {
+    $c = @{ '0' = 'always prompt'; '1' = 'send safe samples automatically'; '2' = 'never send'; '3' = 'send all samples automatically' }["$Consent"]
+    $m = @{ '0' = 'cloud protection off'; '1' = 'basic'; '2' = 'advanced' }["$Maps"]
+    if (-not $c -or -not $m) { return '  info       Defender file upload: could not be read (Defender off, or another antivirus is in charge)' }
+    return ("  info       Defender file upload: samples = {0}, cloud reporting = {1}. Less upload sends fewer of your files to Microsoft but weakens protection against new malware. Change it only on purpose: Windows Security > Virus & threat protection settings." -f $c, $m)
+}
+$mp = Get-MpPreference -EA SilentlyContinue
+Write-Host (Format-DefenderSampleInfo $mp.SubmitSamplesConsent $mp.MAPSReporting)
+
 Write-Host "$($CHECKS.Count) checks, $read readable, $drift not as expected."
 if ($read -eq 0) { exit 2 }
 if ($drift) { exit 1 }
