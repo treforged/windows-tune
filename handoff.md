@@ -10,6 +10,7 @@ Earlier resume briefs said to start on Fable; they are out of date.
 - Applied: 12-context-menu (Tre's profile), Gus-Taskbar-Dock 5 of 5 (12:25), and Gus-Taskbar-NoHighlight 3 of 3 (12:27). Measured: the background is clear, icons are 52, running dots show, Clipchamp is hidden, the admin item is listed, the two mods are off, and the VALORANT exclude is set.
 - GAP: the FOCUSED app still shows a highlight box (`Documents/Desktop-Stash/taskbar-dock/after2-idle-zoom.png`). Collapsing `Border#BackgroundElement` changed nothing. Next: Explorer restart test (Sam/Tre go), or XAML-tree inspection. Do not raise UAC prompts by guesswork.
 - Undo (elevated, in order): `Undo-nohighlight-20261119-122709.ps1`, then `Undo-windhawk-20261119-122528.ps1`, both in Desktop-Stash/taskbar-dock. Menu: `scripts/12-context-menu-revert.ps1`.
+- SAM RULING 12:3x: no new UAC now. Tre's owed restart (740587af) reloads Explorer for free. AFTER the restart: run `Gus-Taskbar-Shot.ps1` and zoom. If the focused box is gone, close f55b451e. If it is not, raise the STAGED fix as one UAC. NOT YET DONE (the 5-hour cap hit at 94%): find the real element with the styler's XAML diagnostics or UWPSpy (no admin), then stage the fix with a snapshot, an undo and an HKCU red test, the same shape as `Gus-Taskbar-NoHighlight.ps1`. Do not raise it.
 - Hover cannot be proven by a screenshot: the synthetic cursor does not trigger XAML hover. A real hover needs SendInput or Tre's eye.
 
 ## 2026-11-19 (later) - taskbar dock + Windhawk study + 12-context-menu
