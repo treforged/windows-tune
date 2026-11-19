@@ -5,6 +5,14 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## FIRST UP AFTER TRE'S REBOOT (2026-11-19 16:20, latest)
+
+1. a835e3a9: Windhawk engine Exclude now holds `ollama*.exe` (written 16:07:58, Tre's Yes). It goes live only when the service starts. Read the modules of the first ollama.exe: `Get-Process ollama* | % { $_.Modules.ModuleName -match 'windhawk' }`. Expect NONE. If the Ollama app autostarts with a window, tell Sam (he switches boot to the headless `restart_ollama.py`). Close a835e3a9 on NONE.
+2. 4ec48798: retry the Windows Sandbox enable (the store is repaired, and the pending restart is now done).
+3. Taskbar sanity shot with `claudecontext/tools/Gus-Taskbar-Shot.ps1`, to confirm the dock styling survived the reboot.
+4. b4ddc894: read `Win32_PhysicalMemory.ConfiguredClockSpeed`. 4800 = EXPO off. The crash watch (TRE-Forged-GusCrashWatch, daily 09:13, 11-20..11-26) logs it too.
+Rule: NO Windhawk service restart while Ollama or another desk's long job runs, unless announced to Sam.
+
 ## 2026-11-19 15:10 - LESSON: a Windhawk service restart likely kills Ollama (ask a835e3a9)
 
 - Ollama died at 12:25, 12:27 and 14:53, the exact times my scripts ran `Restart-Service windhawk -Force`. Measured: windhawk.dll and 6 all-process mods are injected into ollama.exe and "ollama app". The restart unloads them in every process. This is correlation plus a mechanism, not a reproduction (reproducing it would kill Ollama again).
