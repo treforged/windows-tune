@@ -5,6 +5,13 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-19 12:30 - taskbar dock RAN; one gap left (ask f55b451e)
+
+- Applied: 12-context-menu (Tre's profile), Gus-Taskbar-Dock 5 of 5 (12:25), and Gus-Taskbar-NoHighlight 3 of 3 (12:27). Measured: the background is clear, icons are 52, running dots show, Clipchamp is hidden, the admin item is listed, the two mods are off, and the VALORANT exclude is set.
+- GAP: the FOCUSED app still shows a highlight box (`Documents/Desktop-Stash/taskbar-dock/after2-idle-zoom.png`). Collapsing `Border#BackgroundElement` changed nothing. Next: Explorer restart test (Sam/Tre go), or XAML-tree inspection. Do not raise UAC prompts by guesswork.
+- Undo (elevated, in order): `Undo-nohighlight-20261119-122709.ps1`, then `Undo-windhawk-20261119-122528.ps1`, both in Desktop-Stash/taskbar-dock. Menu: `scripts/12-context-menu-revert.ps1`.
+- Hover cannot be proven by a screenshot: the synthetic cursor does not trigger XAML hover. A real hover needs SendInput or Tre's eye.
+
 ## 2026-11-19 (later) - taskbar dock + Windhawk study + 12-context-menu
 
 - WAITING on Sam's "Tre ready": `claudecontext/tools/Gus-Taskbar-Dock.ps1` (private, one UAC). It makes the taskbar clear with no highlight behind icons (the running dot stays), sets icons to 52, adds an engine Exclude for VALORANT/Riot/vgc, narrows dot-hide and explorer-details to explorer, turns OFF the two context-menu mods if 12 is applied, then restarts the Windhawk service. Test: `Gus-Taskbar-Dock.test.ps1` against an HKCU copy, 5 of 5, undo byte-exact. Sequence on "Tre ready": check for a game, run `scripts/12-context-menu.ps1` (no admin), raise the UAC, then take idle and hovered shots with `Gus-Taskbar-Shot.ps1` and a menu reading.
