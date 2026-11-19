@@ -10,7 +10,7 @@ Earlier resume briefs said to start on Fable; they are out of date.
 1. a835e3a9: Windhawk engine Exclude now holds `ollama*.exe` (written 16:07:58, Tre's Yes). It goes live only when the service starts. Read the modules of the first ollama.exe: `Get-Process ollama* | % { $_.Modules.ModuleName -match 'windhawk' }`. Expect NONE. If the Ollama app autostarts with a window, tell Sam (he switches boot to the headless `restart_ollama.py`). Close a835e3a9 on NONE.
 2. 4ec48798: retry the Windows Sandbox enable (the store is repaired, and the pending restart is now done).
 3. Taskbar sanity shot with `claudecontext/tools/Gus-Taskbar-Shot.ps1`, to confirm the dock styling survived the reboot.
-4. b4ddc894: read `Win32_PhysicalMemory.ConfiguredClockSpeed`. 4800 = EXPO off. The crash watch (TRE-Forged-GusCrashWatch, daily 09:13, 11-20..11-26) logs it too.
+4. RAM: Tre DECIDED EXPO stays ON at 5600 (kit rated 6000; 4 sticks are steady at 5600 on his board). Do not propose EXPO off again. The crash watch keeps running. If a NEW bugcheck appears, the next step is a memory stress test (no BIOS change), then the NVIDIA driver.
 Rule: NO Windhawk service restart while Ollama or another desk's long job runs, unless announced to Sam.
 
 ## 2026-11-19 15:10 - LESSON: a Windhawk service restart likely kills Ollama (ask a835e3a9)
