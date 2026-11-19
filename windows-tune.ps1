@@ -177,6 +177,8 @@ $menu = [ordered]@{
              changes = 'Diagnostic data policy to the lowest level this edition allows, advertising ID, tailored experiences and activity-feed publishing; records the old values and writes telemetry-tune-revert.ps1 first' }
     'Y' = @{ name = '..\privacy\telemetry-tune.ps1'; args = @{ ServicesOnly = $true }; label = 'Disable the DiagTrack and dmwappush services';
              changes = 'Stops and disables two Windows services (not a Microsoft instruction, and a feature update may re-enable them); records the start types and writes telemetry-tune-revert.ps1 first' }
+    'C' = @{ name = '12-context-menu.ps1';         args = @{};                        label = 'Tidy the right-click menu (admin terminal item, hide app items)';
+             changes = 'Adds Open in Admin Terminal to folders and drives, and hides Clipchamp, OneDrive, Copilot and Defender-scan menu items for your user (HKCU only); records what it added and writes 12-context-menu-revert.ps1 first' }
     'L' = @{ name = '..\privacy\privacy-tune.ps1';   args = @{};                       label = 'Hide your language list from websites';
              changes = 'HttpAcceptLanguageOptOut = 1 for your account; writes privacy-tune-revert.ps1 first' }
     'B' = @{ name = '..\privacy\browser-privacy.ps1'; args = @{};                      label = 'Block third-party cookies in Chrome and Edge';

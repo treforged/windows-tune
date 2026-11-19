@@ -658,7 +658,7 @@ if (-not $planFn20) {
 }
 # every option's label is the menu's label for the same key, and its -Choice is that key
 $argRows20 = [regex]::Matches($guiText20, "Label = '([^']+)';\s+Args = '-Choice ([0-9A-Z])( -AcceptRisk)?(?: -NoElevate)?( -Yes)?'")
-if ($argRows20.Count -ne 19) { Fail "windows-tune-gui.ps1 has $($argRows20.Count) option rows, expected 19 - stage 20 checked nothing" }
+if ($argRows20.Count -ne 20) { Fail "windows-tune-gui.ps1 has $($argRows20.Count) option rows, expected 20 - stage 20 checked nothing" }
 # and the other way round: every menu row that runs a script has a GUI row, so no action exists in one surface only
 $menuKeys20 = @([regex]::Matches($menuText20, "(?m)^\s*'([0-9A-Z])' = @\{ name = '[^']+\.ps1'") | ForEach-Object { $_.Groups[1].Value })
 $guiKeys20 = @($argRows20 | ForEach-Object { $_.Groups[2].Value })
@@ -692,11 +692,11 @@ $revertScripts21 = @(Get-ChildItem (Join-Path $repo 'scripts') -Filter '*.ps1' |
 ]*'[^']*-revert\.ps1'"
 } | ForEach-Object { $_.Name.Substring(0,2) } | Sort-Object)
 $readme21 = Get-Content (Join-Path $repo 'README.md') -Raw
-$claimOk21 = $readme21 -match 'Only 01, 02, 08, 09 and 10\s+write a `\*-revert\.ps1`'
+$claimOk21 = $readme21 -match 'Only 01, 02, 08, 09, 10 and 12\s+write a `\*-revert\.ps1`'
 if ($revertScripts21.Count -eq 0) { Fail 'stage 21 found no script that writes a revert file - checked nothing' }
-elseif (($revertScripts21 -join ',') -ne '01,02,08,09,10') { Fail "scripts that write a revert file are $($revertScripts21 -join ','), expected 01,02,08,09,10" }
-elseif (-not $claimOk21) { Fail 'README does not state that only 01, 02, 08, 09 and 10 write a revert file' }
-else { Pass 'only 01, 02, 08, 09 and 10 write a revert file, and the README says so' }
+elseif (($revertScripts21 -join ',') -ne '01,02,08,09,10,12') { Fail "scripts that write a revert file are $($revertScripts21 -join ','), expected 01,02,08,09,10,12" }
+elseif (-not $claimOk21) { Fail 'README does not state that only 01, 02, 08, 09, 10 and 12 write a revert file' }
+else { Pass 'only 01, 02, 08, 09, 10 and 12 write a revert file, and the README says so' }
 
 # --- stage 22: privacy\ scripts (imported from net-tune) are portable and the audit runs --
 # Each script must exist, be ASCII, and carry nothing from the author's PC. The
@@ -1396,6 +1396,26 @@ if (Test-Path $shipped30) {
     $sk30 = Get-Content $shipped30 -Raw
     if ($sk30 -notmatch '<(D|P|Q|DP|DQ|InverseQ)>' -and (Get-KeyFingerprint $sk30)) { Pass "scripts\update-pubkey.xml is a public-only RSA key (fingerprint $(Get-KeyFingerprint $sk30))" } else { Fail 'scripts\update-pubkey.xml is not a valid public-only key' }
 } else { Pass 'scripts\update-pubkey.xml is not in the repo yet: Install mode stays unavailable until the maintainer ships the public key' }
+
+# --- stage 31: 12-context-menu.ps1 (ask 77a80a04). Writes nothing here: dry run + static checks.
+#     The both-ways proof on a real profile is tests/context-menu-live.ps1 (run it when this script changes).
+$cm31 = Join-Path $repo 'scripts\12-context-menu.ps1'
+$src31 = Get-Content $cm31 -Raw
+$e31 = $null; [void][System.Management.Automation.Language.Parser]::ParseFile($cm31, [ref]$null, [ref]$e31)
+if ($e31.Count -eq 0) { Pass '12-context-menu.ps1 parses' } else { Fail "12-context-menu.ps1: $($e31.Count) parse errors" }
+if ($src31 -match '\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-') { Fail '12-context-menu.ps1 hard-codes a handler ID; IDs must be read from the installed app' } else { Pass 'no hard-coded handler IDs: they are read from each app''s manifest' }
+$cmd31 = $src31.Contains(@'
+-Value ('"' + $wt + '" -d "%V\."')
+'@.Trim())
+$v31 = @(($src31 -split "`n") | Where-Object { $_ -notmatch '^\s*#' -and $_ -match '%V' }).Count
+if ($cmd31 -and $v31 -eq 1 -and $src31 -notmatch '(powershell|cmd)(\.exe)?[^\r\n]*%V') { Pass 'the folder path (%V) goes only to wt.exe -d, never into a shell command string' } else { Fail 'the admin-terminal command must be wt.exe -d "%V\." with no shell in between' }
+if ($src31 -notmatch 'HKLM:' -and $src31 -notmatch 'HKEY_LOCAL_MACHINE') { Pass '12-context-menu.ps1 writes nothing machine-wide' } else { Fail '12-context-menu.ps1 references HKLM' }
+$st31 = Join-Path $repo 'scripts\12-context-menu-state.json'
+if (-not (Test-Path $st31)) {
+    $o31 = & $ps -NoProfile -ExecutionPolicy Bypass -File $cm31 -DryRun
+    if ($LASTEXITCODE -eq 0 -and ($o31 -join ' ') -match 'Dry run: nothing changed' -and -not (Test-Path $st31)) { Pass '12 -DryRun exit 0 and wrote no state file' } else { Fail "12 -DryRun: exit $LASTEXITCODE`n$o31" }
+} else { Pass '12 is applied on this PC; dry run skipped (it refuses to stack)' }
+if ((Get-Content (Join-Path $repo 'windows-tune.ps1') -Raw) -match "'C' = @\{ name = '12-context-menu\.ps1'") { Pass 'menu row C runs 12-context-menu.ps1' } else { Fail 'menu row C for 12-context-menu.ps1 is missing' }
 
 if ($fails.Count) { Write-Host "`n$($fails.Count) FAILED" -ForegroundColor Red; exit 1 }
 Write-Host "`nall green" -ForegroundColor Green

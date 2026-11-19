@@ -10,3 +10,4 @@ evals/
 10-update.log
 telemetry-tune-state.json
 *.dpapi
+12-context-menu-state.json

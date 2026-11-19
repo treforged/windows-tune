@@ -126,7 +126,7 @@ should not teach the habit.
 
 ## Scripts
 
-Run elevated, in order, or individually. None support `-WhatIf` (09 has `-DryRun`). Only 01, 02, 08, 09 and 10
+Run elevated, in order, or individually. None support `-WhatIf` (09 has `-DryRun`). Only 01, 02, 08, 09, 10 and 12
 write a `*-revert.ps1` beside themselves first. 03 changes nothing. 04, 05 and 06
 write no revert file: 04's cleanup cannot be undone, and 06 removes a product.
 
@@ -143,6 +143,7 @@ write no revert file: 04's cleanup cannot be undone, and 06 removes a product.
 | `08-core-unpark.ps1` | Keeps every CPU core unparked (minimum cores 100%) on the active plan, AC and battery. |
 | `10-auto-update.ps1` | Opt-in update choice: Off (default), Check and tell me, or Install automatically. See Updates below. |
 | `11-recommended.ps1` | Read-only. Lists the privacy changes worth making on this PC, with risk, undo and source. |
+| `12-context-menu.ps1` | Adds Open in Admin Terminal to folders and drives, and hides the Clipchamp, OneDrive, Copilot and Defender-scan menu items. Your user only (HKCU), no admin needed. Reads each app's menu IDs from its own manifest. `-DryRun`, `-Undo`. |
 | `09-game-mode.ps1` | Game mode. While a game you list runs, pauses the background work you list, and puts it back when the game exits. See below. |
 
 ### Game mode (`09-game-mode.ps1`, menu 8, 9 and G)

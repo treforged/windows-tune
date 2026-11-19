@@ -109,7 +109,8 @@ $optionDefs = @(
     @{ Label = 'Disable the DiagTrack and dmwappush services'; Args = '-Choice Y' },
     @{ Label = 'Hide your language list from websites'; Args = '-Choice L' },
     @{ Label = 'Block third-party cookies in Chrome and Edge'; Args = '-Choice B' },
-    @{ Label = 'Encrypt DNS lookups (DNS over HTTPS)';  Args = '-Choice D' }
+    @{ Label = 'Encrypt DNS lookups (DNS over HTTPS)';  Args = '-Choice D' },
+    @{ Label = 'Tidy the right-click menu (admin terminal item, hide app items)'; Args = '-Choice C' }
 )
 
 $checkboxes = @()
