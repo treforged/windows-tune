@@ -398,7 +398,7 @@ function Get-HardcodedPathHit {
 $pathHits = 0
 $scanned14 = 0
 foreach ($f in Get-ChildItem $repo -Recurse -File -Include '*.ps1', '*.cmd' |
-         Where-Object { $_.FullName -notmatch '\\(\.git|tests)\\' -and $_.Name -notlike '*-revert.ps1' }) {
+         Where-Object { $_.FullName -notmatch '\\(\.git|tests|\.venv|venv|__pycache__|node_modules)\\' -and $_.Name -notlike '*-revert.ps1' }) {
     $scanned14++
     $n = 0
     foreach ($line in (Get-Content $f.FullName)) {
