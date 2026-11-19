@@ -5,6 +5,11 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-19 15:10 - LESSON: a Windhawk service restart likely kills Ollama (ask a835e3a9)
+
+- Ollama died at 12:25, 12:27 and 14:53, the exact times my scripts ran `Restart-Service windhawk -Force`. Measured: windhawk.dll and 6 all-process mods are injected into ollama.exe and "ollama app". The restart unloads them in every process. This is correlation plus a mechanism, not a reproduction (reproducing it would kill Ollama again).
+- RULE for this desk: never restart the Windhawk service while Ollama (or another desk's long job) runs, without telling Sam first. Proposed fix: add `ollama*.exe` to the engine Exclude (one UAC, staged on Sam's yes).
+
 ## 2026-11-19 15:00 - v1.3.0 PUBLISHED, taskbar DONE
 
 - Tre typed "yes v1.3.0" and "go taskbar". v1.3.0 is live (tag -> f042c9c). The asset digest, the local sha256 and a fresh download all equal 7252e7e6...ccd10. install.ps1 is pinned on origin/main (0/0, checked by contents).
