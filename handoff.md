@@ -7,6 +7,8 @@ Earlier resume briefs said to start on Fable; they are out of date.
 
 ## FIRST UP (2026-11-19 01:42, latest)
 
+- REWRITE HALF DONE (ask c6b3081b, Tre typed the yes). The tags carry the clean history. main is still OLD, because branch protection blocks force-push. When Tre turns on force-pushes for main: `git fetch <Desktop-Stash>/windows-tune-REWRITTEN-20261119.bundle` and push its main (3415deb6? no: use the bundle's main) with --force. Turn force-pushes off again and read the protection back. Then check by contents that origin/main has 0 trailers and the same trees. After that, reset the local main to origin/main. Do NOT roll the tags back without his word. The old history is in `windows-tune-pre-rewrite-20261119.bundle`.
+
 - NEW 11-19 (Tre): (1) ask 218bcb9d - patch notes in the installer: CHANGELOG.md ships in the zip, install.ps1 prints the installed version's notes, and a preflight stage asserts them. (2) No more Claude co-author trailers or PR footers on any commit (machine-wide rule, ask d4568a9a with Sam). (3) The history rewrite that removes the existing trailers needs a force-push and waits on Tre's typed yes (ask c6b3081b).
 
 - The batch ran at 01:24 with RESULT 4 of 5. The elevated install test passed with DONE failures=0 (14 PASS). The store went from Repairable to Healthy after RestoreHealth, and sfc came back Clean. The Sandbox enable still failed with "store corrupted" because a restart is pending.
