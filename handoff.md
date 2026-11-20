@@ -5,6 +5,13 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-20 04:55 - Ollama crash mitigated (b708ddcd closed)
+
+- The crash is qwen3-coder:30b only: "CUDA error: shared object initialization failed" during load, with VRAM free. A/B under a gpu_job lease: 2/5 loads failed before, 0/5 after `GGML_CUDA_NO_PINNED=1` in claudecontext/ollama-serve.cmd (4b3e0ba, live). Small sample, so a new llama-server Event 1000 reopens it. Undo: copy `ollama-serve.cmd.bak-nopinned-20261120` back, then run `restart_ollama.py --restart`.
+- `restart_ollama.py --restart` refuses unless every model has been idle 5 min (173f6e7, gate test_restart_ollama.py).
+- NOMAD starts on demand (Sam's ruling): a caller runs `wsl -d nomad --exec /bin/true` when health fails. There is no Startup persistence.
+- Queue: only 4ec48798 and a835e3a9, deferred to 11-21 08:00. Both need the reboot, which waits on Tre.
+
 ## 2026-11-20 04:25 - Ollama crash evidence, headless log, NOMAD built
 
 - b708ddcd (OPEN): 7 `llama-server.exe` crashes 11-19 18:58 to 11-20 03:34. Every one is Event 1000, 0xc0000409, at the SAME offset `ucrtbase+0xa527e` (an abort), and every runner died 20-30 s after it started, so each failed during model LOAD. No WHEA and no bugcheck since 11-19 noon. One nvlddmkm 153 at 19:00:57, between two crashes. Read: a deterministic CUDA init failure on a model swap (MAX_LOADED_MODELS=1, the old runner still unloading), not random RAM corruption, so EXPO is not implicated by this evidence. NOT proven: the next crash writes its CUDA line to the new log below. Read that first.
