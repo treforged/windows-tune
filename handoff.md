@@ -5,7 +5,15 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
-## FIRST UP AFTER TRE'S REBOOT (2026-11-19 16:20, latest)
+## 2026-11-20 04:25 - Ollama crash evidence, headless log, NOMAD built
+
+- b708ddcd (OPEN): 7 `llama-server.exe` crashes 11-19 18:58 to 11-20 03:34. Every one is Event 1000, 0xc0000409, at the SAME offset `ucrtbase+0xa527e` (an abort), and every runner died 20-30 s after it started, so each failed during model LOAD. No WHEA and no bugcheck since 11-19 noon. One nvlddmkm 153 at 19:00:57, between two crashes. Read: a deterministic CUDA init failure on a model swap (MAX_LOADED_MODELS=1, the old runner still unloading), not random RAM corruption, so EXPO is not implicated by this evidence. NOT proven: the next crash writes its CUDA line to the new log below. Read that first.
+- 4856e746 (DONE): no live server log existed, because `restart_ollama.py` ran `serve` under `conhost --headless` with no redirect. claudecontext c777d6c + b0171dd (local, that repo has no remote): the task now runs `claudecontext/ollama-serve.cmd`, which appends to `%LOCALAPPDATA%\Ollama\serve-headless.log` (rotated at 50 MB). Restarted live at 04:15. Startup took ~35 s, so the wait is now 60 s. 22b2a604 was folded into b708ddcd.
+- My error: at 04:14 I killed the server while an idle qwen2.5-coder:14b was still resident (90 s keep-alive). Check `/api/ps` is EMPTY and stop if not, in a separate step, before any kill.
+- b0806e3d (DONE): Project NOMAD runs on a new WSL2 distro `nomad` (disk on G:\nomad\wsl), with its own Docker Engine. Compose `/opt/project-nomad/compose.yml`: admin, mysql, redis pinned by digest, admin on 127.0.0.1:8090 only. wsl.conf turns off drive automount and Windows interop. Proofs: localhost health 200, LAN IP refused, Docker Desktop shows no NOMAD container. Residual: the admin has no auth and holds its docker.sock. UNDO: `wsl --unregister nomad`, then delete G:\nomad.
+- wsl.exe mangles `$(...)` and `$VAR` in `wsl -- bash -c '...'`. Pipe the script on stdin with `bash -s`.
+
+## FIRST UP AFTER TRE'S REBOOT (2026-11-19 16:20)
 
 1. a835e3a9: Windhawk engine Exclude now holds `ollama*.exe` (written 16:07:58, Tre's Yes). It goes live only when the service starts. Read the modules of the first ollama.exe: `Get-Process ollama* | % { $_.Modules.ModuleName -match 'windhawk' }`. Expect NONE. If the Ollama app autostarts with a window, tell Sam (he switches boot to the headless `restart_ollama.py`). Close a835e3a9 on NONE.
 2. 4ec48798: retry the Windows Sandbox enable (the store is repaired, and the pending restart is now done).
