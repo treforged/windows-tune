@@ -144,6 +144,7 @@ write no revert file: 04's cleanup cannot be undone, and 06 removes a product.
 | `10-auto-update.ps1` | Opt-in update choice: Off (default), Check and tell me, or Install automatically. See Updates below. |
 | `11-recommended.ps1` | Read-only. Lists the privacy changes worth making on this PC, with risk, undo and source. |
 | `12-context-menu.ps1` | Adds Open in Admin Terminal to folders and drives, and hides the Clipchamp, OneDrive, Copilot and Defender-scan menu items. Your user only (HKCU), no admin needed. Reads each app's menu IDs from its own manifest. `-DryRun`, `-Undo`. |
+| `13-window-rescue.ps1` | Moves any window whose position is on a monitor that is switched off or unplugged onto the main screen. `-DryRun` previews, `-Watch` keeps checking every 3 s, `-InstallWatcher` runs that at sign-in as you (not admin), `-RemoveWatcher` undoes it. Writes no revert file. |
 | `09-game-mode.ps1` | Game mode. While a game you list runs, pauses the background work you list, and puts it back when the game exits. See below. |
 
 ### Game mode (`09-game-mode.ps1`, menu 8, 9 and G)

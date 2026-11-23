@@ -658,7 +658,7 @@ if (-not $planFn20) {
 }
 # every option's label is the menu's label for the same key, and its -Choice is that key
 $argRows20 = [regex]::Matches($guiText20, "Label = '([^']+)';\s+Args = '-Choice ([0-9A-Z])( -AcceptRisk)?(?: -NoElevate)?( -Yes)?'")
-if ($argRows20.Count -ne 20) { Fail "windows-tune-gui.ps1 has $($argRows20.Count) option rows, expected 20 - stage 20 checked nothing" }
+if ($argRows20.Count -ne 21) { Fail "windows-tune-gui.ps1 has $($argRows20.Count) option rows, expected 21 - stage 20 checked nothing" }
 # and the other way round: every menu row that runs a script has a GUI row, so no action exists in one surface only
 $menuKeys20 = @([regex]::Matches($menuText20, "(?m)^\s*'([0-9A-Z])' = @\{ name = '[^']+\.ps1'") | ForEach-Object { $_.Groups[1].Value })
 $guiKeys20 = @($argRows20 | ForEach-Object { $_.Groups[2].Value })
@@ -666,6 +666,15 @@ $missing20 = @($menuKeys20 | Where-Object { $guiKeys20 -notcontains $_ })
 if ($menuKeys20.Count -eq 0) { Fail 'stage 20 found no script rows in the menu - checked nothing' }
 elseif ($missing20.Count) { Fail "menu option(s) $($missing20 -join ', ') have no row in the click-install window" }
 else { Pass "every one of the $($menuKeys20.Count) menu options that runs a script is also in the click-install window" }
+# every menu key must bind to -Choice, or its GUI button fails before anything runs (option C did, 11-23)
+$choiceSet20 = [regex]::Match($menuText20, '\[ValidateSet\(([^)]*)\)\]\[string\]\$Choice')
+if (-not $choiceSet20.Success) { Fail 'Choice ValidateSet not found in windows-tune.ps1 - check ran on nothing' }
+else {
+    $set20 = @([regex]::Matches($choiceSet20.Groups[1].Value, "'([^']*)'") | ForEach-Object { $_.Groups[1].Value })
+    $unbound20 = @($menuKeys20 | Where-Object { $set20 -notcontains $_ })
+    if ($unbound20.Count) { Fail "menu option(s) $($unbound20 -join ', ') are not in -Choice's ValidateSet, so the click-install window cannot run them" }
+    else { Pass "all $($menuKeys20.Count) menu keys are accepted by -Choice" }
+}
 foreach ($r20 in $argRows20) {
     $label20 = $r20.Groups[1].Value; $key20 = $r20.Groups[2].Value; $accept20 = $r20.Groups[3].Value; $yes20 = $r20.Groups[4].Value
     if (-not $accept20 -and $r20.Value -match '-NoElevate') { Fail "GUI option $key20 passes -NoElevate without -AcceptRisk"; continue }

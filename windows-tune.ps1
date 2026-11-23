@@ -41,7 +41,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('1', '2', '3', '4', '5', '6', '7', '8', '9', 'G', 'U', 'V', 'P', 'T', 'Y', 'L', 'B', 'D', 'S', 'R', 'Q')][string]$Choice,
+    [ValidateSet('1', '2', '3', '4', '5', '6', '7', '8', '9', 'G', 'U', 'V', 'P', 'T', 'Y', 'L', 'B', 'D', 'S', 'R', 'Q', 'C', 'W')][string]$Choice,
     [switch]$AcceptRisk,
     [switch]$NoElevate,
     [switch]$Yes
@@ -179,6 +179,8 @@ $menu = [ordered]@{
              changes = 'Stops and disables two Windows services (not a Microsoft instruction, and a feature update may re-enable them); records the start types and writes telemetry-tune-revert.ps1 first' }
     'C' = @{ name = '12-context-menu.ps1';         args = @{};                        label = 'Tidy the right-click menu (admin terminal item, hide app items)';
              changes = 'Adds Open in Admin Terminal to folders and drives, and hides Clipchamp, OneDrive, Copilot and Defender-scan menu items for your user (HKCU only); records what it added and writes 12-context-menu-revert.ps1 first' }
+    'W' = @{ name = '13-window-rescue.ps1';        args = @{ InstallWatcher = $true }; label = 'Rescue windows from a switched-off monitor';
+             changes = 'Registers a sign-in task that runs hidden as you (not admin) and moves any window sitting on a monitor that is off or unplugged onto the main screen; undo with 13-window-rescue.ps1 -RemoveWatcher' }
     'L' = @{ name = '..\privacy\privacy-tune.ps1';   args = @{};                       label = 'Hide your language list from websites';
              changes = 'HttpAcceptLanguageOptOut = 1 for your account; writes privacy-tune-revert.ps1 first' }
     'B' = @{ name = '..\privacy\browser-privacy.ps1'; args = @{};                      label = 'Block third-party cookies in Chrome and Edge';

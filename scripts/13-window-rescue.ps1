@@ -3,6 +3,7 @@
 Windows keeps an app's last position on a monitor that is now off, so it opens out of sight; this moves every such window onto the primary monitor.
 .UNDO
 None needed - it only moves windows.
+-InstallWatcher registers a sign-in task that runs -Watch hidden, as the user (not admin); -RemoveWatcher removes it.
 #>
 
 [CmdletBinding()]
@@ -10,8 +11,12 @@ param(
     [switch]$Watch,
     [ValidateRange(1,60)]
     [int]$IntervalSeconds = 3,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$InstallWatcher,
+    [switch]$RemoveWatcher
 )
+
+$TASK_NAME = 'WindowsTune-WindowRescue'
 
 # Guarded Add-Type for the WinRescue helper class
 if (-not ('WinRescue' -as [type])) {
@@ -196,6 +201,63 @@ public static class WinRescue
 }
 "@
 }
+
+if ((@($Watch,$InstallWatcher,$RemoveWatcher) | Where-Object { $_ }).Count -gt 1) {
+    throw 'Pick one of -Watch, -InstallWatcher or -RemoveWatcher.'
+}
+
+if ($RemoveWatcher) {
+    Stop-ScheduledTask -TaskName $TASK_NAME -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $TASK_NAME -Confirm:$false -ErrorAction SilentlyContinue
+    # Stop-ScheduledTask ends the conhost but can leave its powershell.exe child running.
+    $watchers = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object {
+        $_.ProcessId -ne $PID -and
+        $_.CommandLine -and
+        $_.CommandLine.IndexOf($PSCommandPath, [StringComparison]::OrdinalIgnoreCase) -ge 0 -and
+        $_.CommandLine.Trim().EndsWith(' -Watch')
+    }
+    foreach ($w in $watchers) {
+        Stop-Process -Id $w.ProcessId -Force -ErrorAction SilentlyContinue
+        Write-Output "Stopped watcher process $($w.ProcessId)."
+    }
+    Start-Sleep -Seconds 1
+    $remaining = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object {
+        $_.ProcessId -ne $PID -and
+        $_.CommandLine -and
+        $_.CommandLine.IndexOf($PSCommandPath, [StringComparison]::OrdinalIgnoreCase) -ge 0 -and
+        $_.CommandLine.Trim().EndsWith(' -Watch')
+    }
+    if ($remaining) {
+        Write-Output 'NOT REMOVED: a watcher process is still running.'
+        exit 1
+    }
+    if (Get-ScheduledTask -TaskName $TASK_NAME -ErrorAction SilentlyContinue) {
+        Write-Output "NOT REMOVED: task $TASK_NAME is still registered."
+        exit 1
+    } else {
+        Write-Output "Window rescue watcher removed."
+        exit 0
+    }
+}
+
+if ($InstallWatcher) {
+    $action = New-ScheduledTaskAction -Execute (Join-Path $env:SystemRoot 'System32\conhost.exe') -Argument ('--headless powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $PSCommandPath + '" -Watch')
+    $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+    $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
+    $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
+    Register-ScheduledTask -TaskName $TASK_NAME -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+    Start-ScheduledTask -TaskName $TASK_NAME -ErrorAction SilentlyContinue
+    $task = Get-ScheduledTask -TaskName $TASK_NAME -ErrorAction SilentlyContinue
+    if (-not $task) {
+        Write-Output "NOT CONFIRMED: task $TASK_NAME cannot be read back."
+        exit 1
+    } else {
+        Write-Output ("Watcher task $TASK_NAME registered (state: {0}). It runs as you, not as admin, at every sign-in. Undo: run this script with -RemoveWatcher." -f $task.State)
+        exit 0
+    }
+}
+
+# If $Watch is set, continue normal operation.
 
 function Invoke-Rescue {
     # Load Windows Forms for screen information
