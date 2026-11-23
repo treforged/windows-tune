@@ -11,7 +11,8 @@ Earlier resume briefs said to start on Fable; they are out of date.
 - Gate: `tests/window-rescue.ps1` puts a real window off-screen, runs the script and asserts the window moved (PASS at 40,40). A mutant without SetWindowPlacement went red (still at -3000,100).
 - Finding: a DisplayPort monitor that is powered off leaves the topology, so the old position is the only cause. No display setting changed.
 - Limit: the per-user (Limited) watcher cannot move windows of elevated apps (UIPI).
-- Not in the menu yet. Next slice: menu row plus an install and revert pair.
+- cda59d3: menu row W and GUI row 21 run `-InstallWatcher`. `-RemoveWatcher` also kills the powershell child that Stop-ScheduledTask leaves alive. Fixed: GUI option C never ran, because 'C' was missing from -Choice's ValidateSet. Preflight now checks that every menu key binds.
+- GUS-36 is closed: bufferbloat is mild (+15 ms average under load) and the router has no QoS. GUS-12 and GUS-54 are re-deferred to 11-25 and still need the GUS-45 reboot.
 - GUS-77/78 are closed. The routed findings are ADA-1209 and SAM-1675. GUS-80 (router guest/IoT steps) is next.
 
 ## 2026-11-20 04:55 - Ollama crash mitigated (b708ddcd closed)
