@@ -4,6 +4,11 @@ Windows keeps an app's last position on a monitor that is now off, so it opens o
 .UNDO
 None needed - it only moves windows.
 -InstallWatcher registers a sign-in task that runs -Watch hidden, as the user (not admin); -RemoveWatcher removes it.
+.NOTES
+Limit: a per-user watcher cannot move windows of apps that run as admin (UIPI).
+An elevated mode was REFUSED on 2026-11-23: an admin task that runs a script a user can rewrite
+is a privilege-escalation path (the same reason 09 refuses outside Program Files), and one edge
+case does not justify it. Move an admin window by hand with Win+Shift+Left/Right.
 #>
 
 [CmdletBinding()]
