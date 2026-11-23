@@ -5,6 +5,15 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-23 - Window rescue (GUS-79), homelab audit (GUS-77/78)
+
+- New `scripts/13-window-rescue.ps1`: it moves every titled top-level window whose normal position is on no live display onto the primary work area. Use `-DryRun` to preview and `-Watch` to poll every 3 s.
+- Gate: `tests/window-rescue.ps1` puts a real window off-screen, runs the script and asserts the window moved (PASS at 40,40). A mutant without SetWindowPlacement went red (still at -3000,100).
+- Finding: a DisplayPort monitor that is powered off leaves the topology, so the old position is the only cause. No display setting changed.
+- Limit: the per-user (Limited) watcher cannot move windows of elevated apps (UIPI).
+- Not in the menu yet. Next slice: menu row plus an install and revert pair.
+- GUS-77/78 are closed. The routed findings are ADA-1209 and SAM-1675. GUS-80 (router guest/IoT steps) is next.
+
 ## 2026-11-20 04:55 - Ollama crash mitigated (b708ddcd closed)
 
 - The crash is qwen3-coder:30b only: "CUDA error: shared object initialization failed" during load, with VRAM free. A/B under a gpu_job lease: 2/5 loads failed before, 0/5 after `GGML_CUDA_NO_PINNED=1` in claudecontext/ollama-serve.cmd (4b3e0ba, live). Small sample, so a new llama-server Event 1000 reopens it. Undo: copy `ollama-serve.cmd.bak-nopinned-20261120` back, then run `restart_ollama.py --restart`.
