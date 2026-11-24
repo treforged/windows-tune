@@ -5,6 +5,13 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-23 - Reel "NetMerge" link merging (GUS-83): no gain on one router
+
+- The reel shows NetMerge (rohit267/net-merge, MIT). It load-balances CONNECTIONS across separate internet links. The demo pairs Ethernet with a PHONE HOTSPOT, which is a second internet source.
+- Measured here: Ethernet links at 1 Gbps to the router. The line gives about 540 Mbps on one stream and about 680 Mbps on six. So the internet line is the limit, not the PC link. Wi-Fi is off.
+- Ethernet and Wi-Fi to the SAME router share one internet line, so merging them adds 0 Mbps. Only a second source (a hotspot) adds speed. Even then, one download does not get faster (per-connection balancing), it uses phone data, and it puts a VPN/TUN driver in front of all traffic, including games.
+- Verdict: do not install. Nothing was built, because no reversible part gives a gain. Lesson: before any "combine links" tool, check whether the links reach different internet sources.
+
 ## 2026-11-23 - Window rescue (GUS-79), homelab audit (GUS-77/78)
 
 - New `scripts/13-window-rescue.ps1`: it moves every titled top-level window whose normal position is on no live display onto the primary work area. Use `-DryRun` to preview and `-Watch` to poll every 3 s.
