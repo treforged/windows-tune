@@ -13,6 +13,16 @@
                           keys and Startup folders with their StartupApproved
                           state, and running drivers. Needs no admin.
 
+    wtcli.ps1 tune apply|undo power-min|core-unpark|nic|game-mode
+    wtcli.ps1 net  apply|undo profile|dns|privacy   [-Out <file>]
+                          Runs the repo's own script (or its revert) in a
+                          child process and returns {ok, changed, undo,
+                          readback, before, reason}. An admin action run
+                          unelevated changes NOTHING and returns reason
+                          needs_admin with exit 3. Escanor re-runs it
+                          elevated with -Out <file>, because stdout does not
+                          survive UAC. No resident elevated helper.
+
     A value that cannot be read is "current": null and "state": "unknown",
     never 0. A failure is {"ok":false,"reason":...} with a non-zero exit:
     1 = a reader threw, 2 = unknown command.
@@ -20,7 +30,7 @@
     The network comparison is lifted from 01-network-tune.ps1 by AST, so the
     targets live in one place (the same way tests\preflight.ps1 stage 10 does).
 #>
-param([Parameter(Position=0)][string]$Area,[Parameter(Position=1)][string]$Action)
+param([Parameter(Position=0)][string]$Area, [Parameter(Position=1)][string]$Action, [Parameter(Position=2)][string]$Target, [string]$Out)
 
 function Get-PowerPlanGuid {
     $output = powercfg /getactivescheme
@@ -181,9 +191,16 @@ function Get-TuneList {
 }
 
 function Write-Result {
-    param([object]$Object,[int]$Code)
+    param(
+    [object]$Object,
+    [int]$Code
+    )
+    $json = $Object | ConvertTo-Json -Depth 6 -Compress
+    if ($Out) {
+        Set-Content -LiteralPath $Out -Value $json -Encoding UTF8
+    }
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-    [Console]::Out.Write(($Object | ConvertTo-Json -Depth 6 -Compress))
+    [Console]::Out.Write($json)
     exit $Code
 }
 
@@ -284,6 +301,175 @@ function Get-AdvisorStartup {
 
 function Get-AdvisorInventory { [ordered]@{ ok = $true; engine = 'windows-tune'; version = $script:Version; processes = @(Get-AdvisorProcesses -Top 60); services = @(Get-AdvisorServices); startup = @(Get-AdvisorStartup); drivers = @(Get-AdvisorDrivers) } }
 
+function Get-ActionTable {
+    $table = @{}
+    $table['tune:power-min'] = @{
+        Script = 'scripts\02-power-tune.ps1'
+        ArgList = @()
+        Undo = 'scripts\02-power-tune-revert.ps1'
+        UndoArgs = @()
+        UndoAlways = $false
+        Admin = $true
+        Tweak = 'power-min'
+    }
+    $table['tune:core-unpark'] = @{
+        Script = 'scripts\08-core-unpark.ps1'
+        ArgList = @()
+        Undo = 'scripts\08-core-unpark-revert.ps1'
+        UndoArgs = @()
+        UndoAlways = $false
+        Admin = $true
+        Tweak = 'core-unpark'
+    }
+    $table['tune:nic'] = @{
+        Script = 'scripts\01-network-tune.ps1'
+        ArgList = @()
+        Undo = 'scripts\01-network-tune-revert.ps1'
+        UndoArgs = @()
+        UndoAlways = $false
+        Admin = $true
+        Tweak = 'nic'
+    }
+    $table['net:profile'] = $table['tune:nic']
+    $table['tune:game-mode'] = @{
+        Script = 'scripts\09-game-mode.ps1'
+        ArgList = @('-InstallWatcher')
+        Undo = 'scripts\09-game-mode.ps1'
+        UndoArgs = @('-RemoveWatcher')
+        UndoAlways = $true
+        Admin = $true
+        Tweak = 'game-mode'
+    }
+    $table['net:dns'] = @{
+        Script = 'privacy\dns-encrypt.ps1'
+        ArgList = @()
+        Undo = 'privacy\dns-encrypt-revert.ps1'
+        UndoArgs = @()
+        UndoAlways = $false
+        Admin = $true
+        Tweak = $null
+    }
+    $table['net:privacy'] = @{
+        Script = 'privacy\privacy-tune.ps1'
+        ArgList = @()
+        Undo = 'privacy\privacy-tune-revert.ps1'
+        UndoArgs = @()
+        UndoAlways = $false
+        Admin = $false
+        Tweak = $null
+    }
+    return $table
+}
+function Test-IsAdmin {
+    return ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+function Invoke-Child {
+    param (
+        [string]$Path,
+        [string[]]$ArgList
+    )
+    $ErrorActionPreference = 'Continue'
+    $log = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $Path @ArgList 2>&1 | Out-String
+    $code = $LASTEXITCODE
+    $tail = $log.Trim()
+    if ($tail.Length -gt 400) {
+        $tail = $tail.Substring($tail.Length - 400)
+    }
+    return @{ Code = $code; Tail = $tail }
+}
+function Get-Readback {
+    param (
+        [string]$Root,
+        [hashtable]$Row
+    )
+    if ($null -ne $Row.Tweak) {
+        $t = @(Get-TuneList -Root $Root | Where-Object { $_.id -eq $Row.Tweak })
+        if ($t.Count -gt 0) {
+            return [string]$t[0].current
+        }
+        return $null
+    } else {
+        $undoPath = Join-Path $Root $Row.Undo
+        if (Test-Path -LiteralPath $undoPath) {
+            return 'undo file present'
+        } else {
+            return 'no undo file'
+        }
+    }
+}
+function Invoke-TuneAction {
+    param (
+        [string]$Root,
+        [string]$Key,
+        [string]$Verb
+    )
+    $row = (Get-ActionTable)[$Key]
+    if ($null -eq $row) {
+        $result = [ordered]@{
+            ok = $false
+            changed = $false
+            undo = $null
+            readback = $null
+            reason = "unknown action: $Key"
+        }
+        return @{ Result = $result; Code = 2 }
+    }
+    $undoPath = Join-Path $Root $row.Undo
+    $undoText = $undoPath
+    if ($row.UndoAlways) {
+        $undoText = $undoPath + ' ' + ($row.UndoArgs -join ' ')
+    }
+    $before = Get-Readback -Root $Root -Row $row
+    if ($row.Admin -and -not (Test-IsAdmin)) {
+        $result = [ordered]@{
+            ok = $false
+            changed = $false
+            undo = $undoText
+            readback = $before
+            reason = 'needs_admin'
+        }
+        return @{ Result = $result; Code = 3 }
+    }
+    if ($Verb -eq 'undo' -and -not $row.UndoAlways -and -not (Test-Path -LiteralPath $undoPath)) {
+        $result = [ordered]@{
+            ok = $false
+            changed = $false
+            undo = $null
+            readback = $before
+            reason = 'no undo recorded'
+        }
+        return @{ Result = $result; Code = 1 }
+    }
+    if ($Verb -eq 'apply') {
+        $run = Invoke-Child -Path (Join-Path $Root $row.Script) -ArgList $row.ArgList
+    } else {
+        $run = Invoke-Child -Path $undoPath -ArgList $row.UndoArgs
+    }
+    $after = Get-Readback -Root $Root -Row $row
+    $ok = ($run.Code -eq 0)
+    $reason = ''
+    if (-not $ok) {
+        $reason = "script exit $($run.Code): $($run.Tail)"
+    }
+    $undoOut = $null
+    if ($row.UndoAlways -or (Test-Path -LiteralPath $undoPath)) {
+        $undoOut = $undoText
+    }
+    $result = [ordered]@{
+        ok = $ok
+        changed = ($before -ne $after)
+        undo = $undoOut
+        readback = $after
+        before = $before
+        reason = $reason
+    }
+    $code = 0
+    if (-not $ok) {
+        $code = 1
+    }
+    return @{ Result = $result; Code = $code }
+}
+
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $version = (Get-Content -LiteralPath (Join-Path $root 'VERSION') -TotalCount 1).Trim()
@@ -291,7 +477,7 @@ try {
     if ($Area -eq 'tune' -and $Action -eq 'list') {
         $rows = @(Get-TuneList -Root $root)
         Write-Result ([ordered]@{ ok = $true; engine = 'windows-tune'; version = $version; tweaks = $rows }) 0
-    } elseif ($Area -eq 'advisor' -and $Action -eq 'inventory') { Write-Result (Get-AdvisorInventory) 0 } else {
+    } elseif ($Area -eq 'advisor' -and $Action -eq 'inventory') { Write-Result (Get-AdvisorInventory) 0 } elseif (($Area -eq 'tune' -or $Area -eq 'net') -and ($Action -eq 'apply' -or $Action -eq 'undo')) { $r = Invoke-TuneAction -Root $root -Key ($Area + ':' + $Target) -Verb $Action; Write-Result $r.Result $r.Code } else {
         Write-Result ([ordered]@{ ok = $false; reason = "unknown command: $Area $Action" }) 2
     }
 } catch {

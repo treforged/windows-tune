@@ -79,6 +79,47 @@ try {
     Remove-ItemProperty -Path $apKey -Name $plant -ErrorAction SilentlyContinue
 }
 Check -What 'planted entry removed' -Ok ($null -eq (Get-ItemProperty -Path $runKey -Name $plant -ErrorAction SilentlyContinue))
+# stage 5: apply then undo round-trip on a FIXTURE (Sam 11-25: never on live settings)
+$fx = Join-Path $env:TEMP ('wtcli-fx-' + [guid]::NewGuid().ToString('N'))
+try
+{
+    New-Item -ItemType Directory -Path (Join-Path $fx 'privacy') | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $fx 'scripts') | Out-Null
+    Copy-Item $cli -Destination $fx
+    Copy-Item (Join-Path $repo 'VERSION') -Destination $fx
+    Copy-Item (Join-Path $repo 'scripts\01-network-tune.ps1') -Destination (Join-Path $fx 'scripts')
+    $fxCli = Join-Path $fx 'wtcli.ps1'
+    $marker = Join-Path $fx 'privacy\applied.txt'
+    $privacyScript = Join-Path $fx 'privacy\privacy-tune.ps1'
+    $scriptContent = @'
+Set-Content -LiteralPath (Join-Path $PSScriptRoot 'applied.txt') -Value 'on'
+Set-Content -LiteralPath (Join-Path $PSScriptRoot 'privacy-tune-revert.ps1') -Value 'Remove-Item -LiteralPath (Join-Path $PSScriptRoot ''applied.txt''); Remove-Item -LiteralPath $PSCommandPath'
+exit 0
+'@
+    Set-Content -LiteralPath $privacyScript -Value $scriptContent
+    $r = Invoke-Cli $fxCli @('net','undo','privacy')
+    Check -What 'undo before apply refuses: no undo recorded, exit 1' -Ok (($r.Code -eq 1) -and (($r.Text | ConvertFrom-Json).reason -eq 'no undo recorded'))
+    $out = Join-Path $fx 'out.json'
+    $r = Invoke-Cli $fxCli @('net','apply','privacy','-Out',$out)
+    $j = $r.Text | ConvertFrom-Json
+    Check -What 'fixture apply exit 0 and ok' -Ok (($r.Code -eq 0) -and ($j.ok -eq $true))
+    Check -What 'fixture apply changed the fixture' -Ok ((Test-Path -LiteralPath $marker) -and ($j.changed -eq $true))
+    Check -What 'apply names its undo file' -Ok ([string]$j.undo).EndsWith('privacy-tune-revert.ps1')
+    Check -What '-Out file equals stdout' -Ok ((Test-Path -LiteralPath $out) -and ((Get-Content -LiteralPath $out -Raw).Trim().TrimStart([char]0xFEFF) -eq $r.Text.Trim()))
+    $r = Invoke-Cli $fxCli @('net','undo','privacy')
+    Check -What 'fixture undo exit 0 and the change is gone' -Ok (($r.Code -eq 0) -and -not (Test-Path -LiteralPath $marker))
+    Check -What 'undo readback says no undo file' -Ok ((($r.Text | ConvertFrom-Json).readback) -eq 'no undo file')
+    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdmin)
+    {
+        $r = Invoke-Cli $fxCli @('tune','apply','power-min')
+        Check -What 'admin action unelevated returns needs_admin, exit 3' -Ok (($r.Code -eq 3) -and (($r.Text | ConvertFrom-Json).reason -eq 'needs_admin'))
+    }
+}
+finally
+{
+    Remove-Item -LiteralPath $fx -Recurse -Force -ErrorAction SilentlyContinue
+}
 if ($script:checks -eq 0) { Write-Host 'FAIL checked nothing'; exit 2 }
 Write-Host "$($script:checks) checks, $($script:fails) failed"
 if ($script:fails -gt 0) { exit 1 } else { exit 0 }
