@@ -5,6 +5,12 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-25 09:30 - Second wake: SAM-1276 done, SAM-1121 dropped, GUS-45 re-deferred
+
+- SAM-1276 is done. The local scheduled scan (S4U) runs every day and passed today, so the Cloudflare WAF was never widened.
+- SAM-1121 is dropped. 3 of 9 uninstall candidates are already gone. No drive is under pressure, and Tre made no pick. Reopen it only if he names games or a drive drops under 30 GB.
+- GUS-45 (the restart) is deferred to 11-27. The PC has been up since 11-18. A restart ends every live desk, so it waits on Tre or a gaming pause from Sam.
+
 ## 2026-11-25 - Wake: GUS-12/54 re-deferred, GUS-84 done, GUS-85 leak read
 
 - GUS-12 and GUS-54 still wait for the GUS-45 reboot. They are re-deferred to 11-27 08:00, or to the morning after the restart if it is earlier. There were 0 Ollama crash events from 11-20 05:00 to 11-25. The Windhawk Exclude goes live only after the reboot.
