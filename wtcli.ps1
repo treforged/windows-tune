@@ -314,7 +314,16 @@ function Get-AdvisorStartup {
     return $result
 }
 
-function Get-AdvisorInventory { [ordered]@{ ok = $true; engine = 'windows-tune'; version = $script:Version; processes = @(Get-AdvisorProcesses -Top 60); services = @(Get-AdvisorServices); startup = @(Get-AdvisorStartup); drivers = @(Get-AdvisorDrivers) } }
+function Get-AdvisorInventory {
+    # GUS-90: every row carries denied (bool) and denied_reason (string or null) from the same Test-AdvisorDenied the trims use.
+    # No 09 deny list means every row is denied, so Escanor shows no trim button (fails closed). Drivers have no trim action.
+    param([bool]$DenyReady)
+    $procs = @(Add-DenyFields -Rows @(Get-AdvisorProcesses -Top 60) -Kind 'Process' -DenyReady $DenyReady)
+    $svcs = @(Add-DenyFields -Rows @(Get-AdvisorServices) -Kind 'Service' -DenyReady $DenyReady)
+    $start = @(Add-DenyFields -Rows @(Get-AdvisorStartup) -Kind 'App' -DenyReady $DenyReady)
+    $drv = @(Add-DenyFields -Rows @(Get-AdvisorDrivers) -Kind 'Process' -DenyReady $DenyReady -FixedReason 'drivers have no trim action')
+    [ordered]@{ ok = $true; engine = 'windows-tune'; version = $script:Version; deny_list = $DenyReady; processes = $procs; services = $svcs; startup = $start; drivers = $drv }
+}
 
 function Get-ActionTable {
     $table = @{}
@@ -536,6 +545,92 @@ function Test-AdvisorDenied {
     }
     return $null
 }
+function Get-CommandLeaf {
+    param(
+        [string]$Command
+    )
+
+    $c = ([string]$Command).Trim()
+    if ($c -eq '') {
+        return $null
+    }
+
+    if ($c -like '"*') {
+        $end = $c.IndexOf([char]34, 1)
+        if ($end -lt 1) {
+            $exe = $c.Substring(1)
+        }
+        else {
+            $exe = $c.Substring(1, $end - 1)
+        }
+    }
+    else {
+        $sp = $c.IndexOf(" ")
+        if ($sp -lt 0) {
+            $exe = $c
+        }
+        else {
+            $exe = $c.Substring(0, $sp)
+        }
+    }
+
+    try {
+        $leaf = [System.IO.Path]::GetFileNameWithoutExtension($exe)
+    }
+    catch {
+        return $null
+    }
+
+    if ($leaf -eq '') {
+        return $null
+    }
+    else {
+        return $leaf
+    }
+}
+
+function Get-DenyReason {
+    param([string]$Name, [string]$Kind, [string]$Command, [bool]$DenyReady)
+    if (-not $DenyReady) {
+        return 'deny list unavailable; every trim is refused'
+    }
+    $r = Test-AdvisorDenied -Name $Name -Kind $Kind
+    if ($null -ne $r) {
+        return [string]$r
+    }
+    if ($Command -ne "") {
+        $leaf = Get-CommandLeaf -Command $Command
+        if ($null -ne $leaf) {
+            $r = Test-AdvisorDenied -Name $leaf -Kind $Kind
+            if ($null -ne $r) {
+                return [string]$r
+            }
+        }
+    }
+    return $null
+}
+
+function Add-DenyFields {
+    param([object[]]$Rows, [string]$Kind, [bool]$DenyReady, [string]$FixedReason)
+    $result = @()
+    foreach ($row in $Rows) {
+        $copy = [ordered]@{}
+        foreach ($k in $row.Keys) {
+            $copy[$k] = $row[$k]
+        }
+        if ($FixedReason -ne "") {
+            $reason = $FixedReason
+        }
+        else {
+            $reason = Get-DenyReason -Name ([string]$row['name']) -Kind $Kind -Command ([string]$row['command']) -DenyReady $DenyReady
+        }
+        $copy['denied'] = ($null -ne $reason)
+        $copy['denied_reason'] = $reason
+        $result += ,$copy
+    }
+    return $result
+}
+
 function Get-UndoPath {
     return Join-Path $env:LOCALAPPDATA 'windows-tune\advisor-undo.json'
 }
@@ -787,7 +882,7 @@ try {
     if ($Area -eq 'tune' -and $Action -eq 'list') {
         $rows = @(Get-TuneList -Root $root)
         Write-Result ([ordered]@{ ok = $true; engine = 'windows-tune'; version = $version; tweaks = $rows }) 0
-    } elseif ($Area -eq 'advisor' -and $Action -eq 'inventory') { Write-Result (Get-AdvisorInventory) 0 } elseif (($Area -eq 'tune' -or $Area -eq 'net') -and ($Action -eq 'apply' -or $Action -eq 'undo')) { $r = Invoke-TuneAction -Root $root -Key ($Area + ':' + $Target) -Verb $Action; Write-Result $r.Result $r.Code } elseif (($Area -eq 'tune' -or $Area -eq 'net') -and $Action -eq 'preview') { $r = Invoke-Preview -Root $root -Key ($Area + ':' + $Target); Write-Result $r.Result $r.Code } elseif ($Area -eq 'advisor' -and $Action -ne 'inventory') { . ([scriptblock]::Create((Get-FunctionText -Path (Join-Path $root 'scripts\09-game-mode.ps1') -Name 'Test-GameModeProtected'))); $r = Invoke-AdvisorAction -Verb $Action -Target $Target; Write-Result $r.Result $r.Code } else {
+    } elseif ($Area -eq 'advisor' -and $Action -eq 'inventory') { $denyReady = $true; try { . ([scriptblock]::Create((Get-FunctionText -Path (Join-Path $root 'scripts\09-game-mode.ps1') -Name 'Test-GameModeProtected'))) } catch { $denyReady = $false }; Write-Result (Get-AdvisorInventory -DenyReady $denyReady) 0 } elseif (($Area -eq 'tune' -or $Area -eq 'net') -and ($Action -eq 'apply' -or $Action -eq 'undo')) { $r = Invoke-TuneAction -Root $root -Key ($Area + ':' + $Target) -Verb $Action; Write-Result $r.Result $r.Code } elseif (($Area -eq 'tune' -or $Area -eq 'net') -and $Action -eq 'preview') { $r = Invoke-Preview -Root $root -Key ($Area + ':' + $Target); Write-Result $r.Result $r.Code } elseif ($Area -eq 'advisor' -and $Action -ne 'inventory') { . ([scriptblock]::Create((Get-FunctionText -Path (Join-Path $root 'scripts\09-game-mode.ps1') -Name 'Test-GameModeProtected'))); $r = Invoke-AdvisorAction -Verb $Action -Target $Target; Write-Result $r.Result $r.Code } else {
         Write-Result ([ordered]@{ ok = $false; reason = "unknown command: $Area $Action" }) 2
     }
 } catch {

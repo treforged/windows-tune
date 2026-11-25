@@ -194,6 +194,17 @@ try {
 } finally {
   Remove-Item -LiteralPath $nd -Recurse -Force -ErrorAction SilentlyContinue
 }
+# stage 8: GUS-90 denied field on every inventory row (fixture rows, real run, and no deny list)
+. ([scriptblock]::Create((Get-FunctionText -Path (Join-Path $repo (Join-Path "scripts" "09-game-mode.ps1")) -Name "Test-GameModeProtected")))
+$fx = @( @{ Kind = "App"; Name = "electron.app.Bitwarden"; Want = $true }, @{ Kind = "Process"; Name = "ollama"; Want = $true }, @{ Kind = "Process"; Name = "claude"; Want = $true }, @{ Kind = "Service"; Name = "vgc"; Want = $true }, @{ Kind = "Process"; Name = "WindowsTerminal"; Want = $true }, @{ Kind = "Process"; Name = "notepad"; Want = $false }, @{ Kind = "Service"; Name = "Spooler"; Want = $false } )
+foreach ($f in $fx) { $row = @(Add-DenyFields -Rows @([ordered]@{ name = $f.Name }) -Kind $f.Kind -DenyReady $true)[0]; Check -What ("fixture " + $f.Name + " denied=" + $f.Want) -Ok (($row.denied -eq $f.Want) -and (($null -ne $row.denied_reason) -eq $f.Want)) }
+$row = @(Add-DenyFields -Rows @([ordered]@{ name = "MyUpdater"; command = "`"C:\Apps\Ollama\ollama app.exe`" --hide" }) -Kind "App" -DenyReady $true)[0]; Check -What "startup row denied by its command exe" -Ok ($row.denied -eq $true)
+$row = @(Add-DenyFields -Rows @([ordered]@{ name = "notepad" }) -Kind "Process" -DenyReady $false)[0]; Check -What "no deny list: ordinary row denied" -Ok ($row.denied -eq $true)
+$r = Invoke-Cli $cli @("advisor","inventory"); $inv = $r.Text | ConvertFrom-Json; Check -What "inventory deny_list true" -Ok ($inv.deny_list -eq $true)
+$rows = @($inv.processes) + @($inv.services) + @($inv.startup) + @($inv.drivers); $missing = @($rows | Where-Object { -not ($_.denied -is [bool]) }); Check -What ("every inventory row has a bool denied (" + $rows.Count + " rows)") -Ok (($rows.Count -gt 0) -and ($missing.Count -eq 0))
+Check -What "drivers are all denied" -Ok (@($inv.drivers | Where-Object { $_.denied -ne $true }).Count -eq 0)
+Check -What "real run: some process is trimmable" -Ok (@($inv.processes | Where-Object { $_.denied -eq $false }).Count -gt 0)
+$nd2 = Join-Path $env:TEMP ("wtcli-nodeny2-" + [guid]::NewGuid().ToString("N")); try { New-Item -ItemType Directory -Path (Join-Path $nd2 "scripts") | Out-Null; Copy-Item $cli -Destination $nd2; Copy-Item (Join-Path $repo "VERSION") -Destination $nd2; $r = Invoke-Cli (Join-Path $nd2 "wtcli.ps1") @("advisor","inventory"); $inv2 = $r.Text | ConvertFrom-Json; $open = @(@($inv2.processes) + @($inv2.services) + @($inv2.startup) | Where-Object { $_.denied -ne $true }); Check -What "no deny list: inventory exit 0, deny_list false, every row denied" -Ok (($r.Code -eq 0) -and ($inv2.deny_list -eq $false) -and (@($inv2.processes).Count -gt 0) -and ($open.Count -eq 0)) } finally { Remove-Item -LiteralPath $nd2 -Recurse -Force -ErrorAction SilentlyContinue }
 if ($script:checks -eq 0) { Write-Host 'FAIL checked nothing'; exit 2 }
 Write-Host "$($script:checks) checks, $($script:fails) failed"
 if ($script:fails -gt 0) { exit 1 } else { exit 0 }
