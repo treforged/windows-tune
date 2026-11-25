@@ -5,6 +5,15 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-25 15:45 - GUS-88 slice 1a: `wtcli.ps1 tune list` shipped (resume here FIRST)
+
+- `wtcli.ps1 tune list` is READ-ONLY JSON in Vera's contract (ok, engine, version, tweaks[] with id, group, name, current, recommended, state, undo_ready, needs_admin, why). It needs no admin and runs in about 5 s.
+- Rows: power-min, core-unpark, nic (the 01 targets are lifted by AST, so they stay in one place), game-mode (group gaming). A value it cannot read is null with state unknown, never 0.
+- Gate: `tests/wtcli.ps1`, 27 checks (real run, a planted revert file in a temp copy, a broken 01, an unknown command, the null rule). Mutants ([int] Current; undo_ready forced false) went red, 13 and 1 fails.
+- Lesson: a missing scheduled task throws CimJobException, not CimException. qwen3-coder:30b timed out while another desk held qwen3:8b. Use the loaded model.
+- NEXT: slice 1b `advisor inventory` (processes, services, Run keys, Startup folders, drivers), then slices 2 and 3 below.
+- Post-reboot: GUS-45 and GUS-54 are done (Ollama headless, 0 windhawk modules). Ollama did NOT autostart after the reboot; tell Sam. GUS-12 Sandbox UAC got no answer; raise it again when Tre is at the PC.
+
 ## 2026-11-25 - GUS-88 PAUSED for the PC restart (resume here FIRST)
 
 - GUS-88 (DEC-739, Escanor System tab engine) is claimed [~]. Sam paused it for Tre's PC restart before any code was written. Nothing is uncommitted.

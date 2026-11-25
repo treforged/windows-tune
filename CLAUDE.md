@@ -22,6 +22,7 @@ checked against a real listing while writing, then re-checked by script.
 | **Whether a revert actually reverts** | `tests/revert-credibility.ps1` and `tests/revert-drift.ps1`, with shared helpers in `tests/revert-lib.ps1` |
 | Running a change without touching this machine | `tests/sandbox-run.ps1` |
 | Licence, security policy, attribution | `LICENSE`, `SECURITY.md`, `NOTICE.md` |
+| The JSON engine CLI that Escanor's System tab calls (gate: `tests/wtcli.ps1`) | `wtcli.ps1` |
 | What is true right now, and what is open | `handoff.md` |
 
 Remote is `https://github.com/treforged/windows-tune.git`.
