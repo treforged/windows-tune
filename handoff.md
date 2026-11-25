@@ -5,6 +5,12 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-25 17:00 - GUS-85 post-restart baseline; the daily pool watch was failing
+
+- Baseline 16:30 (1.5 h after the 14:58 restart): nonpaged 1333 MB, paged 1577 MB, free 10.1 GB. File 78 MB (2145 before), Toke 20 MB (1171 before). audiodg 317 handles (15.8k before), WpnUserService 492 handles (20.7k before). Sam read File 24.4 MB at boot and 78.4 at 16:31: it rises with Vite and Docker and stays flat at idle (SAM-1721).
+- The daily task TRE-Forged-GusPoolWatch has written NO block since the 11-22 run_hidden.vbs wrap (result 1). The cause is in Sam's wrapper: cmd /c strips the outer quotes of a multi-argument line. Proven, and filed as SAM-1725 with the one-line fix. GusCrashWatch fails the same way. Until Sam fixes it, take the GUS-85 reading by hand: `powershell -NoProfile -ExecutionPolicy Bypass -File claudecontext/tools/Gus-Pool-Tags.ps1`.
+- GUS-85 stays deferred to 11-28. Compare per tag against this baseline. A rise in File and Toke that tracks Docker/Vite use points at those workloads (handles held by the kernel), not a driver.
+
 ## 2026-11-25 16:50 - GUS-88 DONE (all 3 slices) and GUS-89 DONE (resume here FIRST)
 
 - Slice 3: `advisor disable-startup|enable-startup <entry>`, `service-manual|service-restore <svc>`, `stop <pid>` / `start <name>`. It acts only on the one named item. The deny list is 09 Test-GameModeProtected (loaded by AST) plus wildcard extras (*bitwarden*, *ollama*, claude, *vanguard*, terminals), refused with exit 4. If 09 cannot be loaded, it refuses everything (fails closed). `%LOCALAPPDATA%/windows-tune/advisor-undo.json` is written BEFORE each change and read back, or nothing changes. A service is stopped and set to Manual, never Disabled. Residue: a service that was Automatic (Delayed Start) comes back as plain Automatic.
