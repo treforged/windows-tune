@@ -5,6 +5,14 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-25 - Wake: GUS-12/54 re-deferred, GUS-84 done, GUS-85 leak read
+
+- GUS-12 and GUS-54 still wait for the GUS-45 reboot. They are re-deferred to 11-27 08:00, or to the morning after the restart if it is earlier. There were 0 Ollama crash events from 11-20 05:00 to 11-25. The Windhawk Exclude goes live only after the reboot.
+- GUS-84 (home VPN) is done. The note is in the private net-tune repo.
+- GUS-85 (kernel pool leak): a read-only pool-tag reader (NtQuerySystemInformation 22, no admin) took a reading before the restart. The growth is in File objects and Tokens that kernel references hold, not handles. A daily read-only task logs one block per day until 12-03. Read the growth per tag on 11-28.
+- Lesson: local qwen3:8b failed 3 times on a P/Invoke reader. The first draft did not compile on PS 5.1 (double-quoted here-string, C# 6 interpolation). The next 2 drafts kept a use after free. Sam ruled a hand fix.
+- GUS-86: the PC Tailscale GUI exited on 11-24, and its backend shows NoState. A relaunch waits on Sam's ruling.
+
 ## 2026-11-23 - Reel "NetMerge" link merging (GUS-83): no gain on one router
 
 - The reel shows NetMerge (rohit267/net-merge, MIT). It load-balances CONNECTIONS across separate internet links. The demo pairs Ethernet with a PHONE HOTSPOT, which is a second internet source.
