@@ -10,7 +10,7 @@ Earlier resume briefs said to start on Fable; they are out of date.
 - Draft A is reviewed and sits in `labs/wip-gus88/` (not wired, not run): the deny list (09 Test-GameModeProtected plus wildcard extras: *bitwarden*, *ollama*, claude, *vanguard*), the advisor-undo.json store (save BEFORE, read back), Find-StartupEntry and Invoke-StartupToggle. Use `slice3-deny-fixed.ps1` in place of the Test-AdvisorDenied in the startup draft.
 - Draft B (Invoke-ServiceTrim, Invoke-ProcessStop/Start, Invoke-AdvisorAction plus the elseif) is NOT drafted. Brief: `labs/wip-gus88/slice3-brief-B.txt`. Every free provider failed at 16:05: the GPU was held by another desk (qwen3:14b), groq returned empty twice, mistral HTTP 402, gemini empty. Split the brief into 3 parts and retry local first.
 - Then: Import Test-GameModeProtected by AST from scripts/09 (like Import-NetLogic), wire it, and gate on a fixture (LOCALAPPDATA set to temp for the child, a planted HKCU Run entry, a dummy ping.exe for stop). Prove deny red: WinDefend, electron.app.Bitwarden, ollama. Delete labs/wip-gus88 when it ships.
-- ALSO OPEN (new ask, from Vera): `tune preview` / `net preview` (dry run; {ok, changed:false, would, undo_path, needs_admin, reason}; never needs admin; exit 0). Vera builds the UI against it, so do it BEFORE slice 3.
+- GUS-89 DONE: `tune|net preview <id>` (read-only; {ok, changed:false, would, undo_path, needs_admin, reason}; exit 0, 2 = unknown). Gate is 48 checks: a fixture proves preview never runs the script. Mutant (preview runs apply) went red. Next is slice 3.
 
 ## 2026-11-25 15:45 - GUS-88 slice 1a: `wtcli.ps1 tune list` shipped (resume here FIRST)
 

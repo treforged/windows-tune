@@ -120,6 +120,31 @@ finally
 {
     Remove-Item -LiteralPath $fx -Recurse -Force -ErrorAction SilentlyContinue
 }
+# stage 6: preview changes nothing (GUS-89, Vera VERA-1198)
+$pf = Join-Path $env:TEMP ('wtcli-pv-' + [guid]::NewGuid().ToString('N'))
+try {
+  New-Item -ItemType Directory -Path (Join-Path $pf 'privacy') | Out-Null
+  New-Item -ItemType Directory -Path (Join-Path $pf 'scripts') | Out-Null
+  Copy-Item $cli -Destination $pf
+  Copy-Item (Join-Path $repo 'VERSION') -Destination $pf
+  Copy-Item (Join-Path $repo 'scripts\01-network-tune.ps1') -Destination (Join-Path $pf 'scripts')
+  $pfCli = Join-Path $pf 'wtcli.ps1'
+  $marker = Join-Path $pf 'privacy\applied.txt'
+  Set-Content -LiteralPath (Join-Path $pf 'privacy\privacy-tune.ps1') -Value 'Set-Content -LiteralPath (Join-Path $PSScriptRoot ''applied.txt'') -Value ''on'''
+  $r = Invoke-Cli $pfCli @('net','preview','privacy')
+  $j = $r.Text | ConvertFrom-Json
+  Check -What 'preview exit 0, ok, changed false' -Ok (($r.Code -eq 0) -and ($j.ok -eq $true) -and ($j.changed -eq $false))
+  Check -What 'preview did NOT run the script' -Ok (-not (Test-Path -LiteralPath $marker))
+  Check -What 'preview says what it would do and where the undo goes' -Ok ((-not [string]::IsNullOrEmpty($j.would)) -and ([string]$j.undo_path).EndsWith('privacy-tune-revert.ps1'))
+  Check -What 'privacy preview needs_admin false' -Ok ($j.needs_admin -eq $false)
+  $r = Invoke-Cli $pfCli @('tune','preview','power-min')
+  $j = $r.Text | ConvertFrom-Json
+  Check -What 'power-min preview exit 0 and needs_admin true, unelevated' -Ok (($r.Code -eq 0) -and ($j.needs_admin -eq $true) -and ([string]$j.would).Contains('->'))
+  $r = Invoke-Cli $pfCli @('tune','preview','bogus')
+  Check -What 'unknown preview exit 2' -Ok ($r.Code -eq 2)
+} finally {
+  Remove-Item -LiteralPath $pf -Recurse -Force -ErrorAction SilentlyContinue
+}
 if ($script:checks -eq 0) { Write-Host 'FAIL checked nothing'; exit 2 }
 Write-Host "$($script:checks) checks, $($script:fails) failed"
 if ($script:fails -gt 0) { exit 1 } else { exit 0 }

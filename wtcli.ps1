@@ -23,6 +23,10 @@
                           elevated with -Out <file>, because stdout does not
                           survive UAC. No resident elevated helper.
 
+    wtcli.ps1 tune|net preview <id>   READ-ONLY dry run. Returns {ok,
+                          changed:false, would, undo_path, needs_admin,
+                          reason}. Never needs admin, exit 0 (2 = unknown id).
+
     A value that cannot be read is "current": null and "state": "unknown",
     never 0. A failure is {"ok":false,"reason":...} with a non-zero exit:
     1 = a reader threw, 2 = unknown command.
@@ -470,6 +474,39 @@ function Invoke-TuneAction {
     return @{ Result = $result; Code = $code }
 }
 
+function Get-PreviewWould {
+    param([string]$Root,[string]$Key,[hashtable]$Row)
+    if ($null -ne $Row.Tweak) {
+        $t = @(Get-TuneList -Root $Root | Where-Object { $_.id -eq $Row.Tweak })
+        if ($t.Count -gt 0) {
+            $cur = $t[0].current
+            if ($null -eq $cur) { $cur = 'unknown' }
+            return "$($t[0].name): $cur -> $($t[0].recommended)"
+        }
+    }
+    if ($Key -eq 'net:dns') {
+        return 'Turn on DNS over HTTPS for 1.1.1.1 and 1.0.0.1 (AutoUpgrade = True); the resolver is not changed; writes dns-encrypt-revert.ps1 first'
+    }
+    if ($Key -eq 'net:privacy') {
+        return 'Hide the display-language list from websites (HKCU HttpAcceptLanguageOptOut = 1); writes privacy-tune-revert.ps1 first'
+    }
+    return 'run ' + $Row.Script
+}
+
+function Invoke-Preview {
+    param([string]$Root,[string]$Key)
+    $row = (Get-ActionTable)[$Key]
+    if ($null -eq $row) {
+        return @{ Result = [ordered]@{ ok = $false; changed = $false; would = $null; undo_path = $null; needs_admin = $false; reason = "unknown action: $Key" }; Code = 2 }
+    }
+    $undoPath = Join-Path $Root $row.Undo
+    if ($row.UndoAlways) { $undoPath = $undoPath + ' ' + ($row.UndoArgs -join ' ') }
+    $would = $null
+    $reason = ''
+    try { $would = Get-PreviewWould -Root $Root -Key $Key -Row $row } catch { $reason = $_.Exception.Message }
+    return @{ Result = [ordered]@{ ok = ($reason -eq ''); changed = $false; would = $would; undo_path = $undoPath; needs_admin = [bool]$row.Admin; reason = $reason }; Code = 0 }
+}
+
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $version = (Get-Content -LiteralPath (Join-Path $root 'VERSION') -TotalCount 1).Trim()
@@ -477,7 +514,7 @@ try {
     if ($Area -eq 'tune' -and $Action -eq 'list') {
         $rows = @(Get-TuneList -Root $root)
         Write-Result ([ordered]@{ ok = $true; engine = 'windows-tune'; version = $version; tweaks = $rows }) 0
-    } elseif ($Area -eq 'advisor' -and $Action -eq 'inventory') { Write-Result (Get-AdvisorInventory) 0 } elseif (($Area -eq 'tune' -or $Area -eq 'net') -and ($Action -eq 'apply' -or $Action -eq 'undo')) { $r = Invoke-TuneAction -Root $root -Key ($Area + ':' + $Target) -Verb $Action; Write-Result $r.Result $r.Code } else {
+    } elseif ($Area -eq 'advisor' -and $Action -eq 'inventory') { Write-Result (Get-AdvisorInventory) 0 } elseif (($Area -eq 'tune' -or $Area -eq 'net') -and ($Action -eq 'apply' -or $Action -eq 'undo')) { $r = Invoke-TuneAction -Root $root -Key ($Area + ':' + $Target) -Verb $Action; Write-Result $r.Result $r.Code } elseif (($Area -eq 'tune' -or $Area -eq 'net') -and $Action -eq 'preview') { $r = Invoke-Preview -Root $root -Key ($Area + ':' + $Target); Write-Result $r.Result $r.Code } else {
         Write-Result ([ordered]@{ ok = $false; reason = "unknown command: $Area $Action" }) 2
     }
 } catch {
