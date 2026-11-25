@@ -1,4 +1,4 @@
-# Gate for wtcli.ps1 (GUS-88): the real read-only run, planted revert/failure state in a temp copy, and the null rule.
+# Gate for wtcli.ps1 (GUS-88): the real read-only run, advisor inventory with a planted HKCU Run entry (removed in finally), planted revert/failure state in a temp copy, and the null rule.
 # Exit 0 all pass, 1 a check failed, 2 checked nothing.
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -55,6 +55,30 @@ Check -What 'Get-SideState 0 0 0' -Ok ((Get-SideState 0 0 0) -eq 'on')
 Check -What 'Get-SideState 5 0 0' -Ok ((Get-SideState 5 0 0) -eq 'partial')
 Check -What 'Get-SideState null 0 0' -Ok ((Get-SideState $null 0 0) -eq 'partial')
 Check -What 'Get-SideState 5 5 0 is off' -Ok ((Get-SideState 5 5 0) -eq 'off')
+# stage 4
+$runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+$apKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
+$plant = 'wtcli-test-' + [guid]::NewGuid().ToString('N')
+try {
+    New-ItemProperty -Path $runKey -Name $plant -Value 'cmd.exe /c rem' -PropertyType String -Force | Out-Null
+    $r = Invoke-Cli $cli @('advisor','inventory')
+    Check -What 'inventory exit 0' -Ok ($r.Code -eq 0)
+    $inv = $r.Text | ConvertFrom-Json
+    Check -What 'inventory ok' -Ok ($inv.ok -eq $true)
+    Check -What 'inventory has processes, services, drivers' -Ok ((@($inv.processes).Count -gt 0) -and (@($inv.services).Count -gt 0) -and (@($inv.drivers).Count -gt 0))
+    $e = @($inv.startup | Where-Object { $_.name -eq $plant })
+    Check -What 'planted Run entry is listed once as user/run' -Ok (($e.Count -eq 1) -and ($e[0].scope -eq 'user') -and ($e[0].kind -eq 'run'))
+    Check -What 'planted entry with no approval byte reads enabled' -Ok ($e[0].state -eq 'enabled')
+    if (-not (Test-Path -LiteralPath $apKey)) { New-Item -Path $apKey -Force | Out-Null }
+    New-ItemProperty -Path $apKey -Name $plant -Value ([byte[]](3,0,0,0,0,0,0,0,0,0,0,0)) -PropertyType Binary -Force | Out-Null
+    $inv = (Invoke-Cli $cli @('advisor','inventory')).Text | ConvertFrom-Json
+    $e = @($inv.startup | Where-Object { $_.name -eq $plant })
+    Check -What 'approval byte 03 reads disabled' -Ok ($e[0].state -eq 'disabled')
+} finally {
+    Remove-ItemProperty -Path $runKey -Name $plant -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path $apKey -Name $plant -ErrorAction SilentlyContinue
+}
+Check -What 'planted entry removed' -Ok ($null -eq (Get-ItemProperty -Path $runKey -Name $plant -ErrorAction SilentlyContinue))
 if ($script:checks -eq 0) { Write-Host 'FAIL checked nothing'; exit 2 }
 Write-Host "$($script:checks) checks, $($script:fails) failed"
 if ($script:fails -gt 0) { exit 1 } else { exit 0 }

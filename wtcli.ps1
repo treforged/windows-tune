@@ -8,6 +8,11 @@
                           state (on|off|partial|unknown) and whether a revert
                           file exists. Needs no admin. Writes nothing.
 
+    wtcli.ps1 advisor inventory   READ-ONLY. Top 60 processes by RAM (path,
+                          company, handles), services with start type, Run
+                          keys and Startup folders with their StartupApproved
+                          state, and running drivers. Needs no admin.
+
     A value that cannot be read is "current": null and "state": "unknown",
     never 0. A failure is {"ok":false,"reason":...} with a non-zero exit:
     1 = a reader threw, 2 = unknown command.
@@ -182,6 +187,103 @@ function Write-Result {
     exit $Code
 }
 
+function Get-AdvisorProcesses {
+    param([int]$Top)
+    $processes = Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First $Top
+    $result = @()
+    foreach ($p in $processes) {
+        $path = try { $p.Path } catch { $null }
+        $company = try { $p.Company } catch { $null }
+        $result += [ordered]@{
+            name = $p.ProcessName
+            pid = $p.Id
+            ram_mb = [math]::Round($p.WorkingSet64 / 1MB, 1)
+            handles = $p.HandleCount
+            path = $path
+            company = $company
+        }
+    }
+    return $result
+}
+
+function Get-AdvisorServices {
+    $services = Get-CimInstance Win32_Service -ErrorAction SilentlyContinue
+    if (-not $services) {
+        return @()
+    }
+    $result = @()
+    foreach ($s in $services) {
+        $result += [ordered]@{
+            name = $s.Name
+            display = $s.DisplayName
+            state = $s.State
+            start = $s.StartMode
+            path = $s.PathName
+        }
+    }
+    return $result
+}
+
+function Get-AdvisorDrivers {
+    $drivers = Get-CimInstance Win32_SystemDriver -ErrorAction SilentlyContinue
+    if (-not $drivers) {
+        return @()
+    }
+    $result = @()
+    foreach ($d in $drivers | Where-Object { $_.State -eq 'Running' }) {
+        $result += [ordered]@{
+            name = $d.Name
+            display = $d.DisplayName
+            start = $d.StartMode
+            path = $d.PathName
+        }
+    }
+    return $result
+}
+
+function Get-ApprovedState {
+    param([string]$ApprovedKey,[string]$Name)
+    $v = (Get-ItemProperty -LiteralPath $ApprovedKey -Name $Name -ErrorAction SilentlyContinue).$Name
+    if ($null -eq $v -or $v.Length -lt 1) { return 'enabled' }
+    if ($v[0] % 2 -eq 1) { return 'disabled' } else { return 'enabled' }
+}
+
+function Get-RunKeyEntries {
+    param([string]$Hive,[string]$RunKey,[string]$ApprovedKey,[string]$Scope)
+    $path = "$Hive\$RunKey"
+    $item = Get-Item -LiteralPath $path -ErrorAction SilentlyContinue
+    if ($null -eq $item) { return @() }
+    $result = @()
+    foreach ($n in $item.GetValueNames()) {
+        if ([string]::IsNullOrEmpty($n)) { continue }
+        $cmd = [string]$item.GetValue($n)
+        $state = Get-ApprovedState -ApprovedKey "$Hive\$ApprovedKey" -Name $n
+        $result += [ordered]@{ kind = 'run'; scope = $Scope; name = $n; command = $cmd; location = $path; state = $state }
+    }
+    return $result
+}
+
+function Get-AdvisorStartup {
+    $result = @()
+    $approvedRun = 'Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
+    $approvedRun32 = 'Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run32'
+    $result += Get-RunKeyEntries -Hive 'HKCU:' -RunKey 'Software\Microsoft\Windows\CurrentVersion\Run' -ApprovedKey $approvedRun -Scope 'user'
+    $result += Get-RunKeyEntries -Hive 'HKLM:' -RunKey 'Software\Microsoft\Windows\CurrentVersion\Run' -ApprovedKey $approvedRun -Scope 'machine'
+    $result += Get-RunKeyEntries -Hive 'HKLM:' -RunKey 'Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Run' -ApprovedKey $approvedRun32 -Scope 'machine'
+    $folders = @(@{ Dir = [Environment]::GetFolderPath('Startup'); Hive = 'HKCU:'; Scope = 'user' }, @{ Dir = [Environment]::GetFolderPath('CommonStartup'); Hive = 'HKLM:'; Scope = 'machine' })
+    foreach ($f in $folders) {
+        $files = Get-ChildItem -LiteralPath $f.Dir -File -ErrorAction SilentlyContinue
+        foreach ($file in $files) {
+            if ($file.Name -eq 'desktop.ini') { continue }
+            $state = Get-ApprovedState -ApprovedKey "$($f.Hive)\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder" -Name $file.Name
+            $result += [ordered]@{ kind = 'folder'; scope = $f.Scope; name = $file.Name; command = $file.FullName; location = $f.Dir; state = $state }
+        }
+    }
+    return $result
+}
+
+function Get-AdvisorInventory { [ordered]@{ ok = $true; engine = 'windows-tune'; version = $script:Version; processes = @(Get-AdvisorProcesses -Top 60); services = @(Get-AdvisorServices); startup = @(Get-AdvisorStartup); drivers = @(Get-AdvisorDrivers) } }
+
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $version = (Get-Content -LiteralPath (Join-Path $root 'VERSION') -TotalCount 1).Trim()
@@ -189,7 +291,7 @@ try {
     if ($Area -eq 'tune' -and $Action -eq 'list') {
         $rows = @(Get-TuneList -Root $root)
         Write-Result ([ordered]@{ ok = $true; engine = 'windows-tune'; version = $version; tweaks = $rows }) 0
-    } else {
+    } elseif ($Area -eq 'advisor' -and $Action -eq 'inventory') { Write-Result (Get-AdvisorInventory) 0 } else {
         Write-Result ([ordered]@{ ok = $false; reason = "unknown command: $Area $Action" }) 2
     }
 } catch {

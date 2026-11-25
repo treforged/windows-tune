@@ -11,7 +11,8 @@ Earlier resume briefs said to start on Fable; they are out of date.
 - Rows: power-min, core-unpark, nic (the 01 targets are lifted by AST, so they stay in one place), game-mode (group gaming). A value it cannot read is null with state unknown, never 0.
 - Gate: `tests/wtcli.ps1`, 27 checks (real run, a planted revert file in a temp copy, a broken 01, an unknown command, the null rule). Mutants ([int] Current; undo_ready forced false) went red, 13 and 1 fails.
 - Lesson: a missing scheduled task throws CimJobException, not CimException. qwen3-coder:30b timed out while another desk held qwen3:8b. Use the loaded model.
-- NEXT: slice 1b `advisor inventory` (processes, services, Run keys, Startup folders, drivers), then slices 2 and 3 below.
+- Slice 1b DONE: `wtcli.ps1 advisor inventory` (top 60 processes by RAM, services, Run keys and Startup folders with their StartupApproved state, running drivers). About 14 s, no admin. The gate is 34 checks: a planted HKCU Run entry reads enabled, then disabled with approval byte 03, and it is removed in finally. A mutant went red.
+- NEXT: slice 2 (`tune apply|undo`, `net apply|undo`), then slice 3 (advisor trims with advisor-undo.json).
 - Post-reboot: GUS-45 and GUS-54 are done (Ollama headless, 0 windhawk modules). Ollama did NOT autostart after the reboot; tell Sam. GUS-12 Sandbox UAC got no answer; raise it again when Tre is at the PC.
 
 ## 2026-11-25 - GUS-88 PAUSED for the PC restart (resume here FIRST)
