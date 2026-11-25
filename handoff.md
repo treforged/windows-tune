@@ -5,6 +5,13 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-25 17:40 - GUS-90 DONE: denied field on every advisor inventory row
+
+- `wtcli advisor inventory` rows (processes, services, startup, drivers) now carry `denied` (bool) and `denied_reason` (string or null), from the same Test-AdvisorDenied the trims use. A startup row is also checked by the exe in its command. Drivers are always denied.
+- Top-level `deny_list` (bool). If 09 cannot load, inventory still answers with deny_list false and every row denied (fails closed). Vera has the field names (VERA-1201).
+- Gate tests/wtcli.ps1: 77 checks (14 new: fixture rows Bitwarden, ollama, claude, vgc, WindowsTerminal true; notepad, Spooler false; a copy without 09). Mutants red: deny check skipped (6 fails), missing list read as ready (1 fail).
+- Lesson again: a Python heredoc turned the backslash before 09 into a NUL. Build a backslash with chr(92) and scan for NUL before writing.
+
 ## 2026-11-25 17:00 - GUS-85 post-restart baseline; the daily pool watch was failing
 
 - Baseline 16:30 (1.5 h after the 14:58 restart): nonpaged 1333 MB, paged 1577 MB, free 10.1 GB. File 78 MB (2145 before), Toke 20 MB (1171 before). audiodg 317 handles (15.8k before), WpnUserService 492 handles (20.7k before). Sam read File 24.4 MB at boot and 78.4 at 16:31: it rises with Vite and Docker and stays flat at idle (SAM-1721).
