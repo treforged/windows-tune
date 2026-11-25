@@ -5,6 +5,13 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
+## 2026-11-25 16:05 - GUS-88 slice 3 IN PROGRESS, cut by the 5h cap (resume here FIRST)
+
+- Draft A is reviewed and sits in `labs/wip-gus88/` (not wired, not run): the deny list (09 Test-GameModeProtected plus wildcard extras: *bitwarden*, *ollama*, claude, *vanguard*), the advisor-undo.json store (save BEFORE, read back), Find-StartupEntry and Invoke-StartupToggle. Use `slice3-deny-fixed.ps1` in place of the Test-AdvisorDenied in the startup draft.
+- Draft B (Invoke-ServiceTrim, Invoke-ProcessStop/Start, Invoke-AdvisorAction plus the elseif) is NOT drafted. Brief: `labs/wip-gus88/slice3-brief-B.txt`. Every free provider failed at 16:05: the GPU was held by another desk (qwen3:14b), groq returned empty twice, mistral HTTP 402, gemini empty. Split the brief into 3 parts and retry local first.
+- Then: Import Test-GameModeProtected by AST from scripts/09 (like Import-NetLogic), wire it, and gate on a fixture (LOCALAPPDATA set to temp for the child, a planted HKCU Run entry, a dummy ping.exe for stop). Prove deny red: WinDefend, electron.app.Bitwarden, ollama. Delete labs/wip-gus88 when it ships.
+- ALSO OPEN (new ask, from Vera): `tune preview` / `net preview` (dry run; {ok, changed:false, would, undo_path, needs_admin, reason}; never needs admin; exit 0). Vera builds the UI against it, so do it BEFORE slice 3.
+
 ## 2026-11-25 15:45 - GUS-88 slice 1a: `wtcli.ps1 tune list` shipped (resume here FIRST)
 
 - `wtcli.ps1 tune list` is READ-ONLY JSON in Vera's contract (ok, engine, version, tweaks[] with id, group, name, current, recommended, state, undo_ready, needs_admin, why). It needs no admin and runs in about 5 s.

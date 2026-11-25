@@ -1,0 +1,44 @@
+Translate this specification into Windows PowerShell 5.1 code. Output only the code, no fences, no prose.
+Rules: PowerShell 5.1 only. No ternary, no ?? operator, no C#. ASCII only. Each statement on its own line. Every function synchronous and under 30 lines. Put $null on the LEFT of comparisons.
+These exist already, do not write them: Test-AdvisorDenied -Name -Kind (reason or $null); Test-IsAdmin; Read-UndoStore (hashtable); Save-UndoRecord -Key -Record (returns $true when read back); Remove-UndoRecord -Key; New-AdvisorResult Ok Changed Undo Readback Reason Code (positional).
+
+1. Invoke-ServiceTrim -Name [string] -Verb [string] ('service-manual' or 'service-restore'):
+ if ($Name -notmatch '^[A-Za-z0-9_.\-]{1,80}$') { return New-AdvisorResult $false $false $null $null 'invalid service name' 2 }
+ $deny = Test-AdvisorDenied -Name $Name -Kind 'Service'; if ($null -ne $deny) { return New-AdvisorResult $false $false $null $null "refused: $deny" 4 }
+ $svc = Get-CimInstance Win32_Service -Filter "Name='$Name'" -ErrorAction SilentlyContinue; if ($null -eq $svc) { return New-AdvisorResult $false $false $null $null 'service not found' 1 }
+ $rb = "$($svc.StartMode), $($svc.State)"
+ if (-not (Test-IsAdmin)) { return New-AdvisorResult $false $false $null $rb 'needs_admin' 3 }
+ $key = 'service:' + $Name
+ if ($Verb -eq 'service-manual'):
+   if (-not (Save-UndoRecord -Key $key -Record @{ kind = 'service'; name = $Name; prior = [string]$svc.StartMode; was_running = ($svc.State -eq 'Running') })) { return New-AdvisorResult $false $false $null $rb 'undo record could not be written; nothing changed' 1 }
+   Stop-Service -Name $Name -Force -ErrorAction SilentlyContinue
+   Set-Service -Name $Name -StartupType Manual
+ else (service-restore):
+   $s = Read-UndoStore; if (-not $s.ContainsKey($key)) { return New-AdvisorResult $false $false $null $rb 'no undo recorded' 1 }
+   $rec = $s[$key]; $type = [string]$rec.prior; if ($type -eq 'Auto') { $type = 'Automatic' }
+   Set-Service -Name $Name -StartupType $type
+   if ($rec.was_running) { Start-Service -Name $Name -ErrorAction SilentlyContinue }
+   Remove-UndoRecord -Key $key
+ $after = Get-CimInstance Win32_Service -Filter "Name='$Name'"
+ $undo = $null; if ($Verb -eq 'service-manual') { $undo = "wtcli.ps1 advisor service-restore $Name" }
+ return New-AdvisorResult $true $true $undo "$($after.StartMode), $($after.State)" '' 0
+
+2. Invoke-ProcessStop -Target [string]:
+ $procId = 0; if (-not [int]::TryParse($Target, [ref]$procId)) { return New-AdvisorResult $false $false $null $null 'stop needs a process id' 2 }
+ $p = Get-Process -Id $procId -ErrorAction SilentlyContinue; if ($null -eq $p) { return New-AdvisorResult $false $false $null $null 'process not found' 1 }
+ $deny = Test-AdvisorDenied -Name $p.ProcessName -Kind 'Process'; if ($null -ne $deny) { return New-AdvisorResult $false $false $null 'running' "refused: $deny" 4 }
+ $path = $null; try { $path = $p.Path } catch { $path = $null }
+ $key = 'process:' + $p.ProcessName
+ if (-not (Save-UndoRecord -Key $key -Record @{ kind = 'process'; name = $p.ProcessName; path = $path })) { return New-AdvisorResult $false $false $null 'running' 'undo record could not be written; nothing changed' 1 }
+ Stop-Process -Id $procId -ErrorAction SilentlyContinue
+ Start-Sleep -Milliseconds 500
+ $still = $null -ne (Get-Process -Id $procId -ErrorAction SilentlyContinue)
+ $rb = 'stopped'; if ($still) { $rb = 'running' }
+ return New-AdvisorResult (-not $still) (-not $still) "wtcli.ps1 advisor start $($p.ProcessName)" $rb '' 0
+
+3. Invoke-ProcessStart -Name [string]: $key = 'process:' + $Name; $s = Read-UndoStore; if (-not $s.ContainsKey($key)) { return New-AdvisorResult $false $false $null $null 'no undo recorded' 1 }. $path = [string]$s[$key].path. if ([string]::IsNullOrEmpty($path) -or -not (Test-Path -LiteralPath $path)) { return New-AdvisorResult $false $false $null $null 'recorded path is missing' 1 }. Start-Process -FilePath $path. Remove-UndoRecord -Key $key. return New-AdvisorResult $true $true $null 'started' '' 0.
+
+4. One elseif branch line, nothing around it:
+elseif ($Area -eq 'advisor' -and $Action -ne 'inventory') { $r = Invoke-AdvisorAction -Verb $Action -Target $Target; Write-Result $r.Result $r.Code }
+
+5. Invoke-AdvisorAction -Verb [string] -Target [string]: if ([string]::IsNullOrEmpty($Target)) { return New-AdvisorResult $false $false $null $null 'pick exactly one item: a target is required' 2 }. switch ($Verb): 'disable-startup' and 'enable-startup' -> return Invoke-StartupToggle -Name $Target -Verb $Verb; 'service-manual' and 'service-restore' -> return Invoke-ServiceTrim -Name $Target -Verb $Verb; 'stop' -> return Invoke-ProcessStop -Target $Target; 'start' -> return Invoke-ProcessStart -Name $Target. default: return New-AdvisorResult $false $false $null $null "unknown advisor action: $Verb" 2.
