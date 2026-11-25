@@ -5,12 +5,12 @@ Newest first. Public repo - nothing machine-specific goes in this file.
 Resume this desk on **Opus** (the manager default since 2026-09-02).
 Earlier resume briefs said to start on Fable; they are out of date.
 
-## 2026-11-25 16:05 - GUS-88 slice 3 IN PROGRESS, cut by the 5h cap (resume here FIRST)
+## 2026-11-25 16:50 - GUS-88 DONE (all 3 slices) and GUS-89 DONE (resume here FIRST)
 
-- Draft A is reviewed and sits in `labs/wip-gus88/` (not wired, not run): the deny list (09 Test-GameModeProtected plus wildcard extras: *bitwarden*, *ollama*, claude, *vanguard*), the advisor-undo.json store (save BEFORE, read back), Find-StartupEntry and Invoke-StartupToggle. Use `slice3-deny-fixed.ps1` in place of the Test-AdvisorDenied in the startup draft.
-- Draft B (Invoke-ServiceTrim, Invoke-ProcessStop/Start, Invoke-AdvisorAction plus the elseif) is NOT drafted. Brief: `labs/wip-gus88/slice3-brief-B.txt`. Every free provider failed at 16:05: the GPU was held by another desk (qwen3:14b), groq returned empty twice, mistral HTTP 402, gemini empty. Split the brief into 3 parts and retry local first.
-- Then: Import Test-GameModeProtected by AST from scripts/09 (like Import-NetLogic), wire it, and gate on a fixture (LOCALAPPDATA set to temp for the child, a planted HKCU Run entry, a dummy ping.exe for stop). Prove deny red: WinDefend, electron.app.Bitwarden, ollama. Delete labs/wip-gus88 when it ships.
-- GUS-89 DONE: `tune|net preview <id>` (read-only; {ok, changed:false, would, undo_path, needs_admin, reason}; exit 0, 2 = unknown). Gate is 48 checks: a fixture proves preview never runs the script. Mutant (preview runs apply) went red. Next is slice 3.
+- Slice 3: `advisor disable-startup|enable-startup <entry>`, `service-manual|service-restore <svc>`, `stop <pid>` / `start <name>`. It acts only on the one named item. The deny list is 09 Test-GameModeProtected (loaded by AST) plus wildcard extras (*bitwarden*, *ollama*, claude, *vanguard*, terminals), refused with exit 4. If 09 cannot be loaded, it refuses everything (fails closed). `%LOCALAPPDATA%/windows-tune/advisor-undo.json` is written BEFORE each change and read back, or nothing changes. A service is stopped and set to Manual, never Disabled. Residue: a service that was Automatic (Delayed Start) comes back as plain Automatic.
+- Gate `tests/wtcli.ps1`: 63 checks green on fixtures (temp LOCALAPPDATA, a planted HKCU Run entry, a dummy ping.exe, a copy without 09). Mutants went red: deny off for services (run unelevated only), and the undo record not written. NEVER run a mutant that turns off the startup or process deny while unelevated: it would act on the real Bitwarden entry and on Ollama.
+- No live apply or trim was made on this PC (Sam condition 3: Tre at the PC, no game, undo printed first).
+- Lesson: a Python heredoc turned `scripts\09` into a NUL byte. Write byte-level fixes as a .py file, and scan the output for NUL before the run.
 
 ## 2026-11-25 15:45 - GUS-88 slice 1a: `wtcli.ps1 tune list` shipped (resume here FIRST)
 

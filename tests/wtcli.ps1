@@ -145,6 +145,55 @@ try {
 } finally {
   Remove-Item -LiteralPath $pf -Recurse -Force -ErrorAction SilentlyContinue
 }
+# stage 7: advisor trims on a fixture (GUS-88 slice 3; Sam 11-25: exact picks, hard deny list, undo first)
+$oldLad = $env:LOCALAPPDATA
+$lad = Join-Path $env:TEMP ('wtcli-lad-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $lad | Out-Null
+$undoFile = Join-Path $lad 'windows-tune\advisor-undo.json'
+$runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+$apKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
+$plant = 'wtcli-trim-' + [guid]::NewGuid().ToString('N')
+$ping = $null
+try {
+  $env:LOCALAPPDATA = $lad
+  $r = Invoke-Cli $cli @('advisor','service-manual','WinDefend'); Check -What 'deny: WinDefend refused, exit 4' -Ok ($r.Code -eq 4)
+  $r = Invoke-Cli $cli @('advisor','service-manual','vgc'); Check -What 'deny: Vanguard vgc refused, exit 4' -Ok ($r.Code -eq 4)
+  $r = Invoke-Cli $cli @('advisor','disable-startup','electron.app.Bitwarden'); Check -What 'deny: Bitwarden startup refused, exit 4' -Ok ($r.Code -eq 4)
+  $ol = Get-Process ollama -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($null -ne $ol) { $r = Invoke-Cli $cli @('advisor','stop',[string]$ol.Id); Check -What 'deny: ollama stop refused, exit 4, still running' -Ok (($r.Code -eq 4) -and ($null -ne (Get-Process -Id $ol.Id -ErrorAction SilentlyContinue))) }
+  Check -What 'refusals wrote no undo file' -Ok (-not (Test-Path -LiteralPath $undoFile))
+  $r = Invoke-Cli $cli @('advisor','stop'); Check -What 'no target: refused, exit 2' -Ok ($r.Code -eq 2)
+  New-ItemProperty -Path $runKey -Name $plant -Value 'cmd.exe /c rem' -PropertyType String -Force | Out-Null
+  $r = Invoke-Cli $cli @('advisor','enable-startup',$plant); Check -What 'enable before disable: no undo recorded, exit 1' -Ok ($r.Code -eq 1)
+  $r = Invoke-Cli $cli @('advisor','disable-startup',$plant); $j = $r.Text | ConvertFrom-Json
+  Check -What 'disable-startup exit 0 and readback disabled' -Ok (($r.Code -eq 0) -and ($j.readback -eq 'disabled'))
+  Check -What 'undo record written with the entry name' -Ok ((Test-Path -LiteralPath $undoFile) -and ((Get-Content -LiteralPath $undoFile -Raw) -match [regex]::Escape($plant)))
+  $r = Invoke-Cli $cli @('advisor','enable-startup',$plant); $j = $r.Text | ConvertFrom-Json
+  Check -What 'enable-startup exit 0 and readback enabled' -Ok (($r.Code -eq 0) -and ($j.readback -eq 'enabled'))
+  Check -What 'approval value removed again (prior was none)' -Ok ($null -eq (Get-ItemProperty -Path $apKey -Name $plant -ErrorAction SilentlyContinue))
+  Check -What 'undo record removed after enable' -Ok (-not ((Get-Content -LiteralPath $undoFile -Raw) -match [regex]::Escape($plant)))
+  $ping = Start-Process -FilePath 'ping.exe' -ArgumentList '-n','60','127.0.0.1' -WindowStyle Hidden -PassThru
+  Start-Sleep -Milliseconds 500
+  $r = Invoke-Cli $cli @('advisor','stop',[string]$ping.Id); $j = $r.Text | ConvertFrom-Json
+  Check -What 'stop dummy ping: exit 0, readback stopped, process gone' -Ok (($r.Code -eq 0) -and ($j.readback -eq 'stopped') -and ($null -eq (Get-Process -Id $ping.Id -ErrorAction SilentlyContinue)))
+  Check -What 'stop recorded the path before stopping' -Ok ((Get-Content -LiteralPath $undoFile -Raw) -match 'PING\.EXE|ping\.exe')
+} finally {
+  $env:LOCALAPPDATA = $oldLad
+  Remove-ItemProperty -Path $runKey -Name $plant -ErrorAction SilentlyContinue
+  Remove-ItemProperty -Path $apKey -Name $plant -ErrorAction SilentlyContinue
+  if ($null -ne $ping) { Stop-Process -Id $ping.Id -ErrorAction SilentlyContinue }
+  Remove-Item -LiteralPath $lad -Recurse -Force -ErrorAction SilentlyContinue
+}
+$nd = Join-Path $env:TEMP ('wtcli-nodeny-' + [guid]::NewGuid().ToString('N'))
+try {
+  New-Item -ItemType Directory -Path (Join-Path $nd 'scripts') | Out-Null
+  Copy-Item $cli -Destination $nd
+  Copy-Item (Join-Path $repo 'VERSION') -Destination $nd
+  $r = Invoke-Cli (Join-Path $nd 'wtcli.ps1') @('advisor','service-manual','Spooler')
+  Check -What 'deny list missing: refuses everything (fails closed), exit 1' -Ok (($r.Code -eq 1) -and (($r.Text | ConvertFrom-Json).reason -match 'deny list'))
+} finally {
+  Remove-Item -LiteralPath $nd -Recurse -Force -ErrorAction SilentlyContinue
+}
 if ($script:checks -eq 0) { Write-Host 'FAIL checked nothing'; exit 2 }
 Write-Host "$($script:checks) checks, $($script:fails) failed"
 if ($script:fails -gt 0) { exit 1 } else { exit 0 }

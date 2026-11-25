@@ -27,6 +27,17 @@
                           changed:false, would, undo_path, needs_admin,
                           reason}. Never needs admin, exit 0 (2 = unknown id).
 
+    wtcli.ps1 advisor disable-startup|enable-startup <entry name>
+    wtcli.ps1 advisor service-manual|service-restore <service name>
+    wtcli.ps1 advisor stop <pid>  |  advisor start <process name>
+                          Acts ONLY on the one item named. Refuses anti-cheat,
+                          security, system-critical, live desk and local
+                          model names (exit 4), using 09's own deny list; if
+                          that list cannot be loaded it refuses everything.
+                          Writes %LOCALAPPDATA%\windows-tunedvisor-undo.json
+                          BEFORE the change and reads it back. Service trim
+                          stops it and sets Manual; it never disables.
+
     A value that cannot be read is "current": null and "state": "unknown",
     never 0. A failure is {"ok":false,"reason":...} with a non-zero exit:
     1 = a reader threw, 2 = unknown command.
@@ -507,6 +518,268 @@ function Invoke-Preview {
     return @{ Result = [ordered]@{ ok = ($reason -eq ''); changed = $false; would = $would; undo_path = $undoPath; needs_admin = [bool]$row.Admin; reason = $reason }; Code = 0 }
 }
 
+function Test-AdvisorDenied {
+    param (
+        [string]$Name,
+        [string]$Kind
+    )
+    $r = Test-GameModeProtected -Name $Name -Kind $Kind
+    if ($null -ne $r) {
+        return $r
+    }
+    $n = ([string]$Name).Trim().ToLowerInvariant() -replace '\.exe$', ''
+    $extra = @('*bitwarden*','claude','*ollama*','llama-server','windowsterminal','wt','openconsole','msmpeng','securityhealthsystray','vgc','vgk','*vanguard*')
+    foreach ($p in $extra) {
+        if ($n -like $p) {
+            return "a live desk, local model or security app ($n)"
+        }
+    }
+    return $null
+}
+function Get-UndoPath {
+    return Join-Path $env:LOCALAPPDATA 'windows-tune\advisor-undo.json'
+}
+function Read-UndoStore {
+    $p = Get-UndoPath
+    $store = @{}
+    if (-not (Test-Path -LiteralPath $p)) {
+        return $store
+    }
+    $obj = Get-Content -LiteralPath $p -Raw | ConvertFrom-Json
+    foreach ($prop in $obj.PSObject.Properties) {
+        $store[$prop.Name] = $prop.Value
+    }
+    return $store
+}
+function Save-UndoStore {
+    param (
+        [hashtable]$Store
+    )
+    $p = Get-UndoPath
+    $dir = Split-Path -Parent $p
+    if (-not (Test-Path -LiteralPath $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    }
+    Set-Content -LiteralPath $p -Value ($Store | ConvertTo-Json -Depth 5) -Encoding UTF8
+}
+function Save-UndoRecord {
+    param (
+        [string]$Key,
+        [hashtable]$Record
+    )
+    $s = Read-UndoStore
+    $s[$Key] = $Record
+    Save-UndoStore -Store $s
+    $back = Read-UndoStore
+    return ($back.ContainsKey($Key) -and ([string]$back[$Key].name -eq [string]$Record.name))
+}
+function Remove-UndoRecord {
+    param (
+        [string]$Key
+    )
+    $s = Read-UndoStore
+    $s.Remove($Key) | Out-Null
+    Save-UndoStore -Store $s
+}
+function Find-StartupEntry {
+    param (
+        [string]$Name
+    )
+    $pairs = @(
+        @{
+            Run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+            Approved = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
+            Admin = $false
+        },
+        @{
+            Run = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run'
+            Approved = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'
+            Admin = $true
+        }
+    )
+    foreach ($pair in $pairs) {
+        $v = (Get-ItemProperty -LiteralPath $pair.Run -Name $Name -ErrorAction SilentlyContinue).$Name
+        if ($null -ne $v) {
+            return @{
+                Run = $pair.Run
+                Approved = $pair.Approved
+                Admin = $pair.Admin
+                Command = [string]$v
+            }
+        }
+    }
+    return $null
+}
+function New-AdvisorResult {
+    param (
+        [bool]$Ok,
+        [bool]$Changed,
+        $Undo,
+        $Readback,
+        [string]$Reason,
+        [int]$Code
+    )
+    return @{
+        Result = [ordered]@{
+            ok = $Ok
+            changed = $Changed
+            undo = $Undo
+            readback = $Readback
+            reason = $Reason
+        }
+        Code = $Code
+    }
+}
+function Invoke-StartupToggle {
+    param (
+        [string]$Name,
+        [ValidateSet('disable-startup','enable-startup')][string]$Verb
+    )
+    $deny = Test-AdvisorDenied -Name $Name -Kind 'App'
+    if ($null -ne $deny) {
+        return New-AdvisorResult $false $false $null $null "refused: $deny" 4
+    }
+    $e = Find-StartupEntry -Name $Name
+    if ($null -eq $e) {
+        return New-AdvisorResult $false $false $null $null 'startup entry not found' 1
+    }
+    if ($e.Admin -and -not (Test-IsAdmin)) {
+        $state = Get-ApprovedState -ApprovedKey $e.Approved -Name $Name
+        return New-AdvisorResult $false $false $null $state 'needs_admin' 3
+    }
+    $key = 'startup:' + $Name
+    $undoText = "wtcli.ps1 advisor enable-startup $Name"
+    if ($Verb -eq 'disable-startup') {
+        $old = (Get-ItemProperty -LiteralPath $e.Approved -Name $Name -ErrorAction SilentlyContinue).$Name
+        $prior = $null
+        if ($null -ne $old) {
+            $prior = [Convert]::ToBase64String([byte[]]$old)
+        }
+        $record = @{
+            kind = 'startup'
+            name = $Name
+            approved = $e.Approved
+            prior = $prior
+        }
+        if (-not (Save-UndoRecord -Key $key -Record $record)) {
+            return New-AdvisorResult $false $false $null $null 'undo record could not be written; nothing changed' 1
+        }
+        if (-not (Test-Path -LiteralPath $e.Approved)) {
+            New-Item -Path $e.Approved -Force | Out-Null
+        }
+        New-ItemProperty -LiteralPath $e.Approved -Name $Name -Value ([byte[]](3,0,0,0,0,0,0,0,0,0,0,0)) -PropertyType Binary -Force | Out-Null
+        $rb = Get-ApprovedState -ApprovedKey $e.Approved -Name $Name
+        return New-AdvisorResult ($rb -eq 'disabled') $true $undoText $rb '' 0
+    } else {
+        $s = Read-UndoStore
+        if (-not $s.ContainsKey($key)) {
+            $state = Get-ApprovedState -ApprovedKey $e.Approved -Name $Name
+            return New-AdvisorResult $false $false $null $state 'no undo recorded' 1
+        }
+        $rec = $s[$key]
+        if ($null -eq $rec.prior) {
+            Remove-ItemProperty -LiteralPath $e.Approved -Name $Name -ErrorAction SilentlyContinue
+        } else {
+            $bytes = [Convert]::FromBase64String([string]$rec.prior)
+            New-ItemProperty -LiteralPath $e.Approved -Name $Name -Value $bytes -PropertyType Binary -Force | Out-Null
+        }
+        Remove-UndoRecord -Key $key
+        $rb = Get-ApprovedState -ApprovedKey $e.Approved -Name $Name
+        return New-AdvisorResult $true $true $null $rb '' 0
+    }
+}
+
+function Invoke-ServiceTrim {
+    param([string]$Name, [string]$Verb)
+        if ($Name -notmatch '^[A-Za-z0-9_.\-]{1,80}$') { return New-AdvisorResult $false $false $null $null 'invalid service name' 2 }
+        $deny = Test-AdvisorDenied -Name $Name -Kind 'Service'
+        if ($null -ne $deny) { return New-AdvisorResult $false $false $null $null "refused: $deny" 4 }
+        $svc = Get-CimInstance Win32_Service -Filter "Name='$Name'" -ErrorAction SilentlyContinue
+        if ($null -eq $svc) { return New-AdvisorResult $false $false $null $null 'service not found' 1 }
+        $rb = "$($svc.StartMode), $($svc.State)"
+        if (-not (Test-IsAdmin)) { return New-AdvisorResult $false $false $null $rb 'needs_admin' 3 }
+        $key = 'service:' + $Name
+        if ($Verb -eq 'service-manual') {
+            if (-not (Save-UndoRecord -Key $key -Record @{ kind = 'service'; name = $Name; prior = [string]$svc.StartMode; was_running = ($svc.State -eq 'Running') })) { return New-AdvisorResult $false $false $null $rb 'undo record could not be written; nothing changed' 1 }
+            Stop-Service -Name $Name -Force -ErrorAction SilentlyContinue
+            Set-Service -Name $Name -StartupType Manual
+        } else {
+            $s = Read-UndoStore
+            if (-not $s.ContainsKey($key)) { return New-AdvisorResult $false $false $null $rb 'no undo recorded' 1 }
+            $rec = $s[$key]
+            $type = [string]$rec.prior
+            if ($type -eq 'Auto') { $type = 'Automatic' }
+            Set-Service -Name $Name -StartupType $type
+            if ($rec.was_running) { Start-Service -Name $Name -ErrorAction SilentlyContinue }
+            Remove-UndoRecord -Key $key
+        }
+        $after = Get-CimInstance Win32_Service -Filter "Name='$Name'"
+        $undo = $null
+        if ($Verb -eq 'service-manual') { $undo = "wtcli.ps1 advisor service-restore $Name" }
+        return New-AdvisorResult $true $true $undo "$($after.StartMode), $($after.State)" '' 0
+    }
+
+function Invoke-ProcessStop {
+    param([string]$Target)
+    $procId = 0
+    if (-not [int]::TryParse($Target, [ref]$procId)) { return New-AdvisorResult $false $false $null $null 'stop needs a process id' 2 }
+    $p = Get-Process -Id $procId -ErrorAction SilentlyContinue
+    if ($null -eq $p) { return New-AdvisorResult $false $false $null $null 'process not found' 1 }
+    $deny = Test-AdvisorDenied -Name $p.ProcessName -Kind 'Process'
+    if ($null -ne $deny) { return New-AdvisorResult $false $false $null 'running' "refused: $deny" 4 }
+    $path = $null
+    try { $path = $p.Path } catch { $path = $null }
+    $key = 'process:' + $p.ProcessName
+    if (-not (Save-UndoRecord -Key $key -Record @{ kind = 'process'; name = $p.ProcessName; path = $path })) { return New-AdvisorResult $false $false $null 'running' 'undo record could not be written; nothing changed' 1 }
+    Stop-Process -Id $procId -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 500
+    $still = $null -ne (Get-Process -Id $procId -ErrorAction SilentlyContinue)
+    $rb = 'stopped'
+    if ($still) { $rb = 'running' }
+    return New-AdvisorResult (-not $still) (-not $still) "wtcli.ps1 advisor start $($p.ProcessName)" $rb '' 0
+}
+
+function Invoke-ProcessStart {
+    param([string]$Name)
+    $key = 'process:' + $Name
+    $s = Read-UndoStore
+    if (-not $s.ContainsKey($key)) { return New-AdvisorResult $false $false $null $null 'no undo recorded' 1 }
+    $path = [string]$s[$key].path
+    if ([string]::IsNullOrEmpty($path) -or -not (Test-Path -LiteralPath $path)) { return New-AdvisorResult $false $false $null $null 'recorded path is missing' 1 }
+    Start-Process -FilePath $path
+    Remove-UndoRecord -Key $key
+    return New-AdvisorResult $true $true $null 'started' '' 0
+}
+
+function Invoke-AdvisorAction {
+    param([string]$Verb, [string]$Target)
+    if ([string]::IsNullOrEmpty($Target)) {
+        return New-AdvisorResult $false $false $null $null 'pick exactly one item: a target is required' 2
+    }
+    switch ($Verb) {
+        'disable-startup' { return Invoke-StartupToggle -Name $Target -Verb $Verb }
+        'enable-startup' { return Invoke-StartupToggle -Name $Target -Verb $Verb }
+        'service-manual' { return Invoke-ServiceTrim -Name $Target -Verb $Verb }
+        'service-restore' { return Invoke-ServiceTrim -Name $Target -Verb $Verb }
+        'stop' { return Invoke-ProcessStop -Target $Target }
+        'start' { return Invoke-ProcessStart -Name $Target }
+        default { return New-AdvisorResult $false $false $null $null "unknown advisor action: $Verb" 2 }
+    }
+}
+
+function Get-FunctionText {
+    param (
+        [string]$Path,
+        [string]$Name
+    )
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile($Path, [ref]$null, [ref]$null)
+    $fn = $ast.FindAll({ param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $Name }, $true) | Select-Object -First 1
+    if ($null -eq $fn) {
+        throw "function $Name not found in $Path; refusing to act without the deny list"
+    }
+    return $fn.Extent.Text
+}
+
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $version = (Get-Content -LiteralPath (Join-Path $root 'VERSION') -TotalCount 1).Trim()
@@ -514,7 +787,7 @@ try {
     if ($Area -eq 'tune' -and $Action -eq 'list') {
         $rows = @(Get-TuneList -Root $root)
         Write-Result ([ordered]@{ ok = $true; engine = 'windows-tune'; version = $version; tweaks = $rows }) 0
-    } elseif ($Area -eq 'advisor' -and $Action -eq 'inventory') { Write-Result (Get-AdvisorInventory) 0 } elseif (($Area -eq 'tune' -or $Area -eq 'net') -and ($Action -eq 'apply' -or $Action -eq 'undo')) { $r = Invoke-TuneAction -Root $root -Key ($Area + ':' + $Target) -Verb $Action; Write-Result $r.Result $r.Code } elseif (($Area -eq 'tune' -or $Area -eq 'net') -and $Action -eq 'preview') { $r = Invoke-Preview -Root $root -Key ($Area + ':' + $Target); Write-Result $r.Result $r.Code } else {
+    } elseif ($Area -eq 'advisor' -and $Action -eq 'inventory') { Write-Result (Get-AdvisorInventory) 0 } elseif (($Area -eq 'tune' -or $Area -eq 'net') -and ($Action -eq 'apply' -or $Action -eq 'undo')) { $r = Invoke-TuneAction -Root $root -Key ($Area + ':' + $Target) -Verb $Action; Write-Result $r.Result $r.Code } elseif (($Area -eq 'tune' -or $Area -eq 'net') -and $Action -eq 'preview') { $r = Invoke-Preview -Root $root -Key ($Area + ':' + $Target); Write-Result $r.Result $r.Code } elseif ($Area -eq 'advisor' -and $Action -ne 'inventory') { . ([scriptblock]::Create((Get-FunctionText -Path (Join-Path $root 'scripts\09-game-mode.ps1') -Name 'Test-GameModeProtected'))); $r = Invoke-AdvisorAction -Verb $Action -Target $Target; Write-Result $r.Result $r.Code } else {
         Write-Result ([ordered]@{ ok = $false; reason = "unknown command: $Area $Action" }) 2
     }
 } catch {
